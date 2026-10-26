@@ -1,0 +1,184 @@
+<Window x:Class="TaskManagerPlusPlus.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="TaskManager++" Height="900" Width="1400" MinHeight="700" MinWidth="1050"
+        Background="{StaticResource WindowBrush}" Foreground="{StaticResource TextBrush}"
+        WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <Style x:Key="PanelCard" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="20" />
+        </Style>
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#172238" />
+            <Setter Property="Foreground" Value="#9EACC1" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="12,12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style TargetType="DataGridCell">
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="10,9" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="28">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,24">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="TASKMANAGER++" FontSize="13" FontWeight="Bold"
+                           Foreground="{StaticResource AccentBrush}" />
+                <TextBlock Text="System monitor" FontSize="29" FontWeight="SemiBold" Margin="0,5,0,0" />
+                <TextBlock Text="A clearer view of memory, processes and system activity"
+                           Foreground="{StaticResource MutedBrush}" FontSize="13" Margin="0,3,0,0" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock x:Name="UpdatedText" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"
+                           Margin="0,0,16,0" />
+                <Button Content="Refresh" Click="RefreshButton_Click" />
+            </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="0,0,0,18">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Border Style="{StaticResource PanelCard}" Margin="0,0,10,0">
+                <StackPanel>
+                    <TextBlock Text="PHYSICAL MEMORY IN USE" FontSize="11" FontWeight="SemiBold"
+                               Foreground="{StaticResource MutedBrush}" />
+                    <TextBlock x:Name="PhysicalUsedText" Text="—" FontSize="25" FontWeight="SemiBold" Margin="0,9,0,2" />
+                    <TextBlock x:Name="PhysicalUsedDetailText" Text="—" FontSize="12" Foreground="{StaticResource MutedBrush}" />
+                    <ProgressBar x:Name="PhysicalProgress" Height="5" Margin="0,15,0,0" Minimum="0" Maximum="100"
+                                 Foreground="{StaticResource AccentBrush}" Background="#27344A" BorderThickness="0" />
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="1" Style="{StaticResource PanelCard}" Margin="5,0">
+                <StackPanel>
+                    <TextBlock Text="AVAILABLE TO APPS" FontSize="11" FontWeight="SemiBold"
+                               Foreground="{StaticResource MutedBrush}" />
+                    <TextBlock x:Name="AvailableText" Text="—" FontSize="25" FontWeight="SemiBold" Margin="0,9,0,2" />
+                    <TextBlock x:Name="AvailableDetailText" Text="Free + reclaimable standby memory"
+                               FontSize="12" Foreground="{StaticResource MutedBrush}" />
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="2" Style="{StaticResource PanelCard}" Margin="10,0,0,0">
+                <StackPanel>
+                    <TextBlock Text="COMMIT CHARGE" FontSize="11" FontWeight="SemiBold"
+                               Foreground="{StaticResource MutedBrush}" />
+                    <TextBlock x:Name="CommitText" Text="—" FontSize="25" FontWeight="SemiBold" Margin="0,9,0,2" />
+                    <TextBlock x:Name="CommitDetailText" Text="Committed virtual memory / limit"
+                               FontSize="12" Foreground="{StaticResource MutedBrush}" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="2" Margin="0,0,0,18">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Border Style="{StaticResource PanelCard}" Padding="16" Margin="0,0,8,0">
+                <StackPanel><TextBlock Text="IN USE" Foreground="{StaticResource MutedBrush}" FontSize="11" />
+                    <TextBlock x:Name="InUseBreakdownText" Text="—" FontSize="16" FontWeight="SemiBold" Margin="0,7,0,0" /></StackPanel>
+            </Border>
+            <Border Grid.Column="1" Style="{StaticResource PanelCard}" Padding="16" Margin="4,0">
+                <StackPanel><TextBlock Text="AVAILABLE" Foreground="{StaticResource MutedBrush}" FontSize="11" />
+                    <TextBlock x:Name="AvailableBreakdownText" Text="—" FontSize="16" FontWeight="SemiBold" Margin="0,7,0,0" /></StackPanel>
+            </Border>
+            <Border Grid.Column="2" Style="{StaticResource PanelCard}" Padding="16" Margin="4,0">
+                <StackPanel><TextBlock Text="SYSTEM CACHE*" Foreground="{StaticResource MutedBrush}" FontSize="11" />
+                    <TextBlock x:Name="CacheBreakdownText" Text="—" FontSize="16" FontWeight="SemiBold" Margin="0,7,0,0" /></StackPanel>
+            </Border>
+            <Border Grid.Column="3" Style="{StaticResource PanelCard}" Padding="16" Margin="4,0">
+                <StackPanel><TextBlock Text="KERNEL PAGED" Foreground="{StaticResource MutedBrush}" FontSize="11" />
+                    <TextBlock x:Name="PagedBreakdownText" Text="—" FontSize="16" FontWeight="SemiBold" Margin="0,7,0,0" /></StackPanel>
+            </Border>
+            <Border Grid.Column="4" Style="{StaticResource PanelCard}" Padding="16" Margin="8,0,0,0">
+                <StackPanel><TextBlock Text="KERNEL NONPAGED" Foreground="{StaticResource MutedBrush}" FontSize="11" />
+                    <TextBlock x:Name="NonPagedBreakdownText" Text="—" FontSize="16" FontWeight="SemiBold" Margin="0,7,0,0" /></StackPanel>
+            </Border>
+            <Border Grid.Column="5" Style="{StaticResource PanelCard}" Padding="16" Margin="8,0,0,0">
+                <StackPanel><TextBlock Text="HARDWARE RESERVED" Foreground="{StaticResource MutedBrush}" FontSize="11" />
+                    <TextBlock x:Name="ReservedBreakdownText" Text="—" FontSize="16" FontWeight="SemiBold" Margin="0,7,0,0" /></StackPanel>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="3" Style="{StaticResource PanelCard}" Padding="0" ClipToBounds="True">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid Margin="20,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="Processes" FontSize="18" FontWeight="SemiBold" />
+                        <TextBlock x:Name="ProcessCountText" Text="Loading processes…"
+                                   FontSize="12" Foreground="{StaticResource MutedBrush}" Margin="0,4,0,0" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBox x:Name="SearchBox" Width="220" Height="36" Padding="10,7"
+                                 Background="#0D1525" Foreground="{StaticResource TextBrush}"
+                                 BorderBrush="{StaticResource PanelBorderBrush}" CaretBrush="{StaticResource AccentBrush}"
+                                 VerticalContentAlignment="Center" TextChanged="SearchBox_TextChanged"
+                                 ToolTip="Filter by process name or PID" />
+                        <Button Content="End task" Margin="10,0,0,0" Background="#412A37"
+                                BorderBrush="#694052" Click="EndTaskButton_Click" />
+                    </StackPanel>
+                </Grid>
+                <DataGrid x:Name="ProcessesGrid" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True"
+                          CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="True"
+                          CanUserSortColumns="True" SelectionMode="Single" SelectionUnit="FullRow"
+                          Background="#0E1626" Foreground="{StaticResource TextBrush}" BorderThickness="0"
+                          GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#202C43"
+                          RowBackground="#10192A" AlternatingRowBackground="#121D30"
+                          HeadersVisibility="Column" FontSize="12">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="PROCESS" Binding="{Binding Name}" SortMemberPath="Name" Width="2*" />
+                        <DataGridTextColumn Header="PID" Binding="{Binding Id}" SortMemberPath="Id" Width="70" />
+                        <DataGridTextColumn Header="CPU" Binding="{Binding CpuPercent, StringFormat={}{0:N1}%}"
+                                            SortMemberPath="CpuPercent" Width="80" />
+                        <DataGridTextColumn Header="WORKING SET (RAM)" Binding="{Binding WorkingSetText}"
+                                            SortMemberPath="WorkingSetBytes" Width="155" />
+                        <DataGridTextColumn Header="PRIVATE RAM" Binding="{Binding PrivateWorkingSetText}"
+                                            SortMemberPath="PrivateWorkingSetBytes" Width="125" />
+                        <DataGridTextColumn Header="SHARED RAM" Binding="{Binding SharedWorkingSetText}"
+                                            SortMemberPath="SharedWorkingSetBytes" Width="125" />
+                        <DataGridTextColumn Header="PRIVATE COMMIT" Binding="{Binding PrivateBytesText}"
+                                            SortMemberPath="PrivateBytes" Width="145" />
+                        <DataGridTextColumn Header="VIRTUAL SIZE" Binding="{Binding VirtualBytesText}"
+                                            SortMemberPath="VirtualBytes" Width="135" />
+                        <DataGridTextColumn Header="THREADS" Binding="{Binding Threads}" SortMemberPath="Threads" Width="85" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Border>
+
+        <TextBlock Grid.Row="4" Margin="2,12,0,0" FontSize="11" Foreground="{StaticResource MutedBrush}"
+                   Text="* System cache can overlap with available memory; figures are not additive. Per-process working sets can share the same physical pages." />
+    </Grid>
+</Window>

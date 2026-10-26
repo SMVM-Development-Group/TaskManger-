@@ -1,0 +1,26 @@
+<Application x:Class="TaskManagerPlusPlus.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <SolidColorBrush x:Key="WindowBrush" Color="#0B1020" />
+        <SolidColorBrush x:Key="PanelBrush" Color="#121A2B" />
+        <SolidColorBrush x:Key="PanelBorderBrush" Color="#202C43" />
+        <SolidColorBrush x:Key="MutedBrush" Color="#8996AC" />
+        <SolidColorBrush x:Key="TextBrush" Color="#EDF3FC" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#66D9C2" />
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+            <Setter Property="Background" Value="#1B2940" />
+            <Setter Property="BorderBrush" Value="#2A3A55" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="14,9" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+    </Application.Resources>
+</Application>

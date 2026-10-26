@@ -23,11 +23,31 @@
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="10,9" />
         </Style>
+        <Style x:Key="MemoryCardButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="20" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="12" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid Margin="28">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -57,19 +77,19 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <Border Style="{StaticResource PanelCard}" Margin="0,0,10,0">
+            <Button Style="{StaticResource MemoryCardButton}" Margin="0,0,10,0"
+                    ToolTip="Click to view RAM usage chart" Click="PhysicalMemoryCard_Click">
                 <StackPanel>
-                    <TextBlock Text="PHYSICAL MEMORY IN USE" FontSize="11" FontWeight="SemiBold"
+                    <TextBlock Text="PHYSICAL MEMORY IN USE  ·  CLICK FOR CHART" FontSize="11" FontWeight="SemiBold"
                                Foreground="{StaticResource MutedBrush}" />
                     <TextBlock x:Name="PhysicalUsedText" Text="—" FontSize="25" FontWeight="SemiBold" Margin="0,9,0,2" />
                     <TextBlock x:Name="PhysicalUsedDetailText" Text="—" FontSize="12" Foreground="{StaticResource MutedBrush}" />
                     <ProgressBar x:Name="PhysicalProgress" Height="5" Margin="0,15,0,0" Minimum="0" Maximum="100"
                                  Foreground="{StaticResource AccentBrush}" Background="#27344A" BorderThickness="0" />
                 </StackPanel>
-            </Border>
-            <Border Grid.Column="1" Style="{StaticResource PanelCard}" Margin="5,0">
+            </Button>
+            <Border Grid.Column="1" Style="{StaticResource PanelCard}" Margin="5,0,0,0">
                 <StackPanel>
                     <TextBlock Text="AVAILABLE TO APPS" FontSize="11" FontWeight="SemiBold"
                                Foreground="{StaticResource MutedBrush}" />
@@ -78,53 +98,9 @@
                                FontSize="12" Foreground="{StaticResource MutedBrush}" />
                 </StackPanel>
             </Border>
-            <Border Grid.Column="2" Style="{StaticResource PanelCard}" Margin="10,0,0,0">
-                <StackPanel>
-                    <TextBlock Text="COMMIT CHARGE" FontSize="11" FontWeight="SemiBold"
-                               Foreground="{StaticResource MutedBrush}" />
-                    <TextBlock x:Name="CommitText" Text="—" FontSize="25" FontWeight="SemiBold" Margin="0,9,0,2" />
-                    <TextBlock x:Name="CommitDetailText" Text="Committed virtual memory / limit"
-                               FontSize="12" Foreground="{StaticResource MutedBrush}" />
-                </StackPanel>
-            </Border>
         </Grid>
 
-        <Grid Grid.Row="2" Margin="0,0,0,18">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-            <Border Style="{StaticResource PanelCard}" Padding="16" Margin="0,0,8,0">
-                <StackPanel><TextBlock Text="IN USE" Foreground="{StaticResource MutedBrush}" FontSize="11" />
-                    <TextBlock x:Name="InUseBreakdownText" Text="—" FontSize="16" FontWeight="SemiBold" Margin="0,7,0,0" /></StackPanel>
-            </Border>
-            <Border Grid.Column="1" Style="{StaticResource PanelCard}" Padding="16" Margin="4,0">
-                <StackPanel><TextBlock Text="AVAILABLE" Foreground="{StaticResource MutedBrush}" FontSize="11" />
-                    <TextBlock x:Name="AvailableBreakdownText" Text="—" FontSize="16" FontWeight="SemiBold" Margin="0,7,0,0" /></StackPanel>
-            </Border>
-            <Border Grid.Column="2" Style="{StaticResource PanelCard}" Padding="16" Margin="4,0">
-                <StackPanel><TextBlock Text="SYSTEM CACHE*" Foreground="{StaticResource MutedBrush}" FontSize="11" />
-                    <TextBlock x:Name="CacheBreakdownText" Text="—" FontSize="16" FontWeight="SemiBold" Margin="0,7,0,0" /></StackPanel>
-            </Border>
-            <Border Grid.Column="3" Style="{StaticResource PanelCard}" Padding="16" Margin="4,0">
-                <StackPanel><TextBlock Text="KERNEL PAGED" Foreground="{StaticResource MutedBrush}" FontSize="11" />
-                    <TextBlock x:Name="PagedBreakdownText" Text="—" FontSize="16" FontWeight="SemiBold" Margin="0,7,0,0" /></StackPanel>
-            </Border>
-            <Border Grid.Column="4" Style="{StaticResource PanelCard}" Padding="16" Margin="8,0,0,0">
-                <StackPanel><TextBlock Text="KERNEL NONPAGED" Foreground="{StaticResource MutedBrush}" FontSize="11" />
-                    <TextBlock x:Name="NonPagedBreakdownText" Text="—" FontSize="16" FontWeight="SemiBold" Margin="0,7,0,0" /></StackPanel>
-            </Border>
-            <Border Grid.Column="5" Style="{StaticResource PanelCard}" Padding="16" Margin="8,0,0,0">
-                <StackPanel><TextBlock Text="HARDWARE RESERVED" Foreground="{StaticResource MutedBrush}" FontSize="11" />
-                    <TextBlock x:Name="ReservedBreakdownText" Text="—" FontSize="16" FontWeight="SemiBold" Margin="0,7,0,0" /></StackPanel>
-            </Border>
-        </Grid>
-
-        <Border Grid.Row="3" Style="{StaticResource PanelCard}" Padding="0" ClipToBounds="True">
+        <Border Grid.Row="2" Style="{StaticResource PanelCard}" Padding="0" ClipToBounds="True">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -139,6 +115,9 @@
                         <TextBlock Text="Processes" FontSize="18" FontWeight="SemiBold" />
                         <TextBlock x:Name="ProcessCountText" Text="Loading processes…"
                                    FontSize="12" Foreground="{StaticResource MutedBrush}" Margin="0,4,0,0" />
+                        <TextBlock x:Name="ProcessSummaryText" Text="Filtered total: waiting for first refresh"
+                                   FontSize="12" Foreground="{StaticResource AccentBrush}" Margin="0,3,0,0"
+                                   TextWrapping="Wrap" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBox x:Name="SearchBox" Width="220" Height="36" Padding="10,7"
@@ -162,23 +141,16 @@
                         <DataGridTextColumn Header="PID" Binding="{Binding Id}" SortMemberPath="Id" Width="70" />
                         <DataGridTextColumn Header="CPU" Binding="{Binding CpuPercent, StringFormat={}{0:N1}%}"
                                             SortMemberPath="CpuPercent" Width="80" />
-                        <DataGridTextColumn Header="WORKING SET (RAM)" Binding="{Binding WorkingSetText}"
-                                            SortMemberPath="WorkingSetBytes" Width="155" />
-                        <DataGridTextColumn Header="PRIVATE RAM" Binding="{Binding PrivateWorkingSetText}"
-                                            SortMemberPath="PrivateWorkingSetBytes" Width="125" />
-                        <DataGridTextColumn Header="SHARED RAM" Binding="{Binding SharedWorkingSetText}"
-                                            SortMemberPath="SharedWorkingSetBytes" Width="125" />
-                        <DataGridTextColumn Header="PRIVATE COMMIT" Binding="{Binding PrivateBytesText}"
-                                            SortMemberPath="PrivateBytes" Width="145" />
-                        <DataGridTextColumn Header="VIRTUAL SIZE" Binding="{Binding VirtualBytesText}"
-                                            SortMemberPath="VirtualBytes" Width="135" />
-                        <DataGridTextColumn Header="THREADS" Binding="{Binding Threads}" SortMemberPath="Threads" Width="85" />
+                        <DataGridTextColumn Header="RAM IN USE" Binding="{Binding WorkingSetText}"
+                                            SortMemberPath="WorkingSetBytes" Width="180" />
+                        <DataGridTextColumn Header="MEMORY ALLOCATED" Binding="{Binding PrivateCommitText}"
+                                            SortMemberPath="PrivateCommitBytes" Width="190" />
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>
         </Border>
 
-        <TextBlock Grid.Row="4" Margin="2,12,0,0" FontSize="11" Foreground="{StaticResource MutedBrush}"
-                   Text="* System cache can overlap with available memory; figures are not additive. Per-process working sets can share the same physical pages." />
+        <TextBlock Grid.Row="3" Margin="2,12,0,0" FontSize="11" Foreground="{StaticResource MutedBrush}"
+                   Text="RAM in use is physical memory currently resident. Memory allocated can be larger because some committed memory may be paged out. Shared RAM pages can appear in more than one process." />
     </Grid>
 </Window>

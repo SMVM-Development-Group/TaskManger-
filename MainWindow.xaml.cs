@@ -35,6 +35,7 @@ public partial class MainWindow : Window
     private void SearchBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
     {
         _processView?.Refresh();
+        UpdateProcessSummary();
     }
 
     private bool MatchesFilter(object item)
@@ -73,36 +74,46 @@ public partial class MainWindow : Window
 
     private void UpdateMemory()
     {
-        var performance = new PerformanceInformation { Size = (uint)Marshal.SizeOf<PerformanceInformation>() };
-        if (!NativeMethods.GetPerformanceInfo(ref performance, performance.Size))
-            throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not read system memory counters.");
-
-        var pageSize = performance.PageSize.ToUInt64();
-        var total = performance.PhysicalTotal.ToUInt64() * pageSize;
-        var available = performance.PhysicalAvailable.ToUInt64() * pageSize;
-        var used = total >= available ? total - available : 0;
-        var commit = performance.CommitTotal.ToUInt64() * pageSize;
-        var commitLimit = performance.CommitLimit.ToUInt64() * pageSize;
-        var cache = performance.SystemCache.ToUInt64() * pageSize;
-        var paged = performance.KernelPaged.ToUInt64() * pageSize;
-        var nonPaged = performance.KernelNonpaged.ToUInt64() * pageSize;
-        var reservedText = NativeMethods.GetPhysicallyInstalledSystemMemory(out var installedMemoryKb)
-            ? FormatBytes(installedMemoryKb * 1024 >= total ? installedMemoryKb * 1024 - total : 0)
-            : "Unavailable";
+        var memory = ReadMemoryUsage();
+        var total = memory.TotalBytes;
+        var available = memory.AvailableBytes;
+        var used = memory.UsedBytes;
 
         PhysicalUsedText.Text = $"{FormatBytes(used)} / {FormatBytes(total)}";
         PhysicalUsedDetailText.Text = $"{(total == 0 ? 0 : used * 100d / total):N1}% in use";
         PhysicalProgress.Value = total == 0 ? 0 : Math.Clamp(used * 100d / total, 0, 100);
         AvailableText.Text = FormatBytes(available);
         AvailableDetailText.Text = $"{(total == 0 ? 0 : available * 100d / total):N1}% of physical RAM free or reclaimable";
-        CommitText.Text = $"{FormatBytes(commit)} / {FormatBytes(commitLimit)}";
-        CommitDetailText.Text = $"{(commitLimit == 0 ? 0 : commit * 100d / commitLimit):N1}% of commit limit";
-        InUseBreakdownText.Text = FormatBytes(used);
-        AvailableBreakdownText.Text = FormatBytes(available);
-        CacheBreakdownText.Text = FormatBytes(cache);
-        PagedBreakdownText.Text = FormatBytes(paged);
-        NonPagedBreakdownText.Text = FormatBytes(nonPaged);
-        ReservedBreakdownText.Text = reservedText;
+    }
+
+    private static MemoryUsage ReadMemoryUsage()
+    {
+        var performance = new PerformanceInformation { Size = (uint)Marshal.SizeOf<PerformanceInformation>() };
+        if (!NativeMethods.GetPerformanceInfo(ref performance, performance.Size))
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not read system memory counters.");
+
+        var pageSize = performance.PageSize.ToUInt64();
+        var total = performance.PhysicalTotal.ToUInt64() * pageSize;
+        var available = Math.Min(performance.PhysicalAvailable.ToUInt64() * pageSize, total);
+        return new MemoryUsage(total, total - available, available);
+    }
+
+    private void PhysicalMemoryCard_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var memory = ReadMemoryUsage();
+            var processMemory = _processRows
+                .Where(row => row.WorkingSetBytes > 0)
+                .OrderByDescending(row => row.WorkingSetBytes)
+                .Select(row => (Name: row.Name, Id: row.Id, Bytes: row.WorkingSetBytes))
+                .ToArray();
+            new MemoryChartWindow(memory.UsedBytes, processMemory) { Owner = this }.ShowDialog();
+        }
+        catch (Win32Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "RAM usage unavailable", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void UpdateProcesses(double elapsedSeconds, int processorCount)
@@ -129,27 +140,18 @@ public partial class MainWindow : Window
                     _cpuSamples[id] = new CpuSample(cpuTime);
                     currentIds.Add(id);
 
-                    var counters = new ProcessMemoryCountersEx2
+                    var counters = new ProcessMemoryCounters
                     {
-                        Base = new ProcessMemoryCounters { Size = (uint)Marshal.SizeOf<ProcessMemoryCountersEx2>() }
+                        Size = (uint)Marshal.SizeOf<ProcessMemoryCounters>()
                     };
-                    if (NativeMethods.GetProcessMemoryInfo(process.Handle, ref counters, counters.Base.Size))
+                    if (NativeMethods.GetProcessMemoryInfo(process.Handle, ref counters, counters.Size))
                     {
-                        var workingSet = counters.Base.WorkingSetSize.ToUInt64();
-                        var privateWorkingSet = Math.Min(counters.PrivateWorkingSetSize.ToUInt64(), workingSet);
-                        var sharedWorkingSet = workingSet - privateWorkingSet;
-                        var privateBytes = counters.Base.PrivateUsage.ToUInt64();
-                        var virtualBytes = process.VirtualMemorySize64 < 0 ? 0UL : (ulong)process.VirtualMemorySize64;
                         rows.Add(new ProcessRow(
                             process.ProcessName,
                             id,
                             cpuPercent,
-                            workingSet,
-                            privateWorkingSet,
-                            sharedWorkingSet,
-                            privateBytes,
-                            virtualBytes,
-                            process.Threads.Count));
+                            counters.WorkingSetSize.ToUInt64(),
+                            counters.PrivateUsage.ToUInt64()));
                     }
                     else
                     {
@@ -191,6 +193,22 @@ public partial class MainWindow : Window
         ProcessCountText.Text = $"{rows.Count:N0} processes"
             + (inaccessibleCount > 0 ? $" · {inaccessibleCount:N0} inaccessible or exited during refresh" : "")
             + " · sort by clicking a column";
+        UpdateProcessSummary();
+    }
+
+    private void UpdateProcessSummary()
+    {
+        var visibleRows = _processView.Cast<ProcessRow>().ToArray();
+        if (visibleRows.Length == 0)
+        {
+            ProcessSummaryText.Text = "Filtered total: no matching processes";
+            return;
+        }
+
+        var workingSet = visibleRows.Aggregate(0UL, (total, row) => total + row.WorkingSetBytes);
+        ProcessSummaryText.Text = $"Filtered total ({visibleRows.Length:N0}): "
+            + $"{FormatBytes(workingSet)} RAM in use · "
+            + $"{FormatBytes(visibleRows.Aggregate(0UL, (total, row) => total + row.PrivateCommitBytes))} memory allocated";
     }
 
     private void EndTaskButton_Click(object sender, RoutedEventArgs e)
@@ -244,6 +262,7 @@ public partial class MainWindow : Window
     }
 
     private readonly record struct CpuSample(TimeSpan TotalCpuTime);
+    private readonly record struct MemoryUsage(ulong TotalBytes, ulong UsedBytes, ulong AvailableBytes);
 
     private sealed class ProcessRow : INotifyPropertyChanged
     {
@@ -253,29 +272,17 @@ public partial class MainWindow : Window
         public int Id { get; }
         public double CpuPercent { get; private set; }
         public ulong WorkingSetBytes { get; private set; }
-        public ulong PrivateWorkingSetBytes { get; private set; }
-        public ulong SharedWorkingSetBytes { get; private set; }
-        public ulong PrivateBytes { get; private set; }
-        public ulong VirtualBytes { get; private set; }
-        public int Threads { get; private set; }
         public string WorkingSetText => FormatBytes(WorkingSetBytes);
-        public string PrivateWorkingSetText => FormatBytes(PrivateWorkingSetBytes);
-        public string SharedWorkingSetText => FormatBytes(SharedWorkingSetBytes);
-        public string PrivateBytesText => FormatBytes(PrivateBytes);
-        public string VirtualBytesText => FormatBytes(VirtualBytes);
+        public ulong PrivateCommitBytes { get; private set; }
+        public string PrivateCommitText => FormatBytes(PrivateCommitBytes);
 
-        public ProcessRow(string name, int id, double cpuPercent, ulong workingSet, ulong privateWorkingSet,
-            ulong sharedWorkingSet, ulong privateBytes, ulong virtualBytes, int threads)
+        public ProcessRow(string name, int id, double cpuPercent, ulong workingSet, ulong privateCommitBytes)
         {
             Name = name;
             Id = id;
             CpuPercent = cpuPercent;
             WorkingSetBytes = workingSet;
-            PrivateWorkingSetBytes = privateWorkingSet;
-            SharedWorkingSetBytes = sharedWorkingSet;
-            PrivateBytes = privateBytes;
-            VirtualBytes = virtualBytes;
-            Threads = threads;
+            PrivateCommitBytes = privateCommitBytes;
         }
 
         public void UpdateFrom(ProcessRow row)
@@ -283,11 +290,7 @@ public partial class MainWindow : Window
             Name = row.Name;
             CpuPercent = row.CpuPercent;
             WorkingSetBytes = row.WorkingSetBytes;
-            PrivateWorkingSetBytes = row.PrivateWorkingSetBytes;
-            SharedWorkingSetBytes = row.SharedWorkingSetBytes;
-            PrivateBytes = row.PrivateBytes;
-            VirtualBytes = row.VirtualBytes;
-            Threads = row.Threads;
+            PrivateCommitBytes = row.PrivateCommitBytes;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
         }
     }
@@ -327,14 +330,6 @@ public partial class MainWindow : Window
         public UIntPtr PrivateUsage;
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct ProcessMemoryCountersEx2
-    {
-        public ProcessMemoryCounters Base;
-        public UIntPtr PrivateWorkingSetSize;
-        public UIntPtr SharedCommitUsage;
-    }
-
     private static class NativeMethods
     {
         [DllImport("psapi.dll", SetLastError = true)]
@@ -343,10 +338,6 @@ public partial class MainWindow : Window
 
         [DllImport("psapi.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool GetProcessMemoryInfo(IntPtr process, ref ProcessMemoryCountersEx2 counters, uint size);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool GetPhysicallyInstalledSystemMemory(out ulong totalMemoryInKilobytes);
+        public static extern bool GetProcessMemoryInfo(IntPtr process, ref ProcessMemoryCounters counters, uint size);
     }
 }

@@ -1,6 +1,6 @@
 # TaskManager++
 
-A Windows desktop system monitor built with C# and WPF. It shows system-wide physical memory and commit charge alongside per-process CPU and memory usage.
+A Windows desktop system monitor built with C# and WPF. It focuses on system RAM and per-process CPU and memory usage.
 
 ## Run
 
@@ -14,11 +14,10 @@ The project targets Windows because its live memory counters use the Windows Per
 
 ## Memory figures
 
-- **Physical in use / available** use the Windows system-wide performance counters. Available includes free and reclaimable memory.
-- **Hardware reserved** compares physically installed memory with memory visible to Windows; Windows may report this counter as unavailable on some systems.
-- **Commit charge** is committed virtual memory, not physical RAM; it can be backed by RAM or the page file.
-- **System cache** and kernel pools are additional diagnostics and overlap with physical in-use/available accounting. The cards are not intended to be summed.
-- Per-process **working set** is resident RAM currently mapped into that process. **Private RAM** is its resident private portion; **shared RAM** is the remaining resident portion. Processes may share physical pages, so summing their working sets can double-count RAM.
-- Per-process **private commit** is private committed memory, not the same as private resident RAM.
+- **RAM in use** is the process working set: physical RAM currently resident in that process.
+- **Memory allocated** is private committed memory. It can be larger than RAM in use because some committed pages may be paged out; it is included to help explain cases where a game's allocated memory is much higher than its resident RAM.
+- Summing working sets across several processes can double-count shared physical pages.
 
-The process list refreshes every two seconds, supports search and column sorting, and can request termination of a selected process after confirmation. Protected or elevated processes may deny memory reads or termination.
+The process list refreshes every two seconds, supports search and column sorting, and can request termination of a selected process after confirmation. Search for `cs2` to see totals for matching Counter-Strike 2 processes. Protected or elevated processes may deny memory reads or termination.
+
+Click the **Physical Memory in Use** card to open a pie chart of process RAM in use. It shows the ten largest processes by working set and groups the remaining processes into **Other processes**. The system-wide physical RAM-in-use figure is also shown for comparison. Working sets include shared pages, so summing them can double-count RAM and exceed the system-wide figure.

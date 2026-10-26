@@ -1,0 +1,54 @@
+<Window x:Class="TaskManagerPlusPlus.MemoryChartWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="RAM usage by process" Height="650" Width="940" MinHeight="560" MinWidth="760"
+        ResizeMode="CanResize" WindowStartupLocation="CenterOwner"
+        Background="{StaticResource WindowBrush}" Foreground="{StaticResource TextBrush}">
+    <Grid Margin="28">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel Margin="0,0,0,14">
+            <TextBlock Text="RAM in use by the 10 biggest processes" FontSize="23" FontWeight="SemiBold" />
+            <TextBlock x:Name="SystemMemoryText" Foreground="{StaticResource MutedBrush}"
+                       FontSize="13" Margin="0,4,0,0" />
+            <TextBlock x:Name="ProcessMemoryTotalText" Foreground="{StaticResource MutedBrush}"
+                       FontSize="13" Margin="0,3,0,0" />
+        </StackPanel>
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="1.2*" />
+            </Grid.ColumnDefinitions>
+            <Viewbox MaxWidth="290" MaxHeight="290" Stretch="Uniform">
+                <Canvas x:Name="ChartCanvas" Width="280" Height="280" />
+            </Viewbox>
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Margin="16,0,0,0">
+                <ItemsControl x:Name="LegendList">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,5">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="18" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border Width="12" Height="12" CornerRadius="3"
+                                        Background="{Binding Color}" Margin="0,4,0,0" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{Binding Label}" FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis" ToolTip="{Binding Label}" />
+                                    <TextBlock Text="{Binding ValueText}" Foreground="{StaticResource MutedBrush}"
+                                               FontSize="12" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+        <TextBlock Grid.Row="2" Text="RAM in use is the process working set, matching the process list. Shared memory can appear in more than one process, so process totals may exceed system RAM in use."
+                   TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,14,0,0" />
+    </Grid>
+</Window>

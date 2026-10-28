@@ -44,6 +44,30 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="AiMenuItem" TargetType="MenuItem">
+            <Setter Property="Foreground" Value="#EDF3FC" />
+            <Setter Property="Background" Value="#080B12" />
+            <Setter Property="Padding" Value="14,10" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border x:Name="MenuItemBorder" Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter ContentSource="Header" RecognizesAccessKey="True"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="MenuItemBorder" Property="Background" Value="#263650" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="#68758B" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid Margin="28">
@@ -69,6 +93,23 @@
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                 <TextBlock x:Name="UpdatedText" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"
                            Margin="0,0,16,0" />
+                <Button x:Name="AiAssistantButton" Content="AI assistant ▾" Click="AiAssistantButton_Click"
+                        Background="{StaticResource AccentBrush}" Foreground="#0B1020"
+                        FontWeight="SemiBold" Margin="0,0,8,0"
+                        ToolTip="Analyze the five processes using the most RAM or manage your AI API key">
+                    <Button.ContextMenu>
+                        <ContextMenu Background="#080B12" BorderBrush="#35435A" BorderThickness="1">
+                            <ContextMenu.Resources>
+                                <Style TargetType="MenuItem" BasedOn="{StaticResource AiMenuItem}" />
+                            </ContextMenu.Resources>
+                            <MenuItem Header="Scan top 5 RAM users" Click="AnalyzeProcessesButton_Click" />
+                            <MenuItem Header="Analyze selected process" Click="AnalyzeSelectedProcessButton_Click" />
+                            <MenuItem Header="Open AI chat…" Click="ChatAboutSelectedProcessButton_Click" />
+                            <Separator Background="#35435A" />
+                            <MenuItem Header="AI API key settings…" Click="AiSettingsButton_Click" />
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                </Button>
                 <Button Content="Refresh" Click="RefreshButton_Click" />
             </StackPanel>
         </Grid>

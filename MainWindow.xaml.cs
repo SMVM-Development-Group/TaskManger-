@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Threading;
@@ -31,6 +33,139 @@ public partial class MainWindow : Window
     }
 
     private void RefreshButton_Click(object sender, RoutedEventArgs e) => RefreshData();
+
+    private void AiAssistantButton_Click(object sender, RoutedEventArgs e)
+    {
+        AiAssistantButton.ContextMenu!.PlacementTarget = AiAssistantButton;
+        AiAssistantButton.ContextMenu.IsOpen = true;
+    }
+
+    private void AiSettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        new AiSettingsWindow { Owner = this }.ShowDialog();
+    }
+
+    private void AnalyzeProcessesButton_Click(object sender, RoutedEventArgs e)
+    {
+        var apiKey = GetApiKey();
+        if (string.IsNullOrWhiteSpace(apiKey))
+            return;
+
+        var topProcesses = _processRows
+            .Where(row => row.WorkingSetBytes > 0)
+            .OrderByDescending(row => row.WorkingSetBytes)
+            .Take(5)
+            .Select(CreateProcessMemoryInfo)
+            .ToArray();
+
+        if (topProcesses.Length == 0)
+        {
+            MessageBox.Show(this, "No process memory data is currently available.", "AI analysis",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        new AiAnalysisWindow(apiKey, topProcesses) { Owner = this }.ShowDialog();
+    }
+
+    private void AnalyzeSelectedProcessButton_Click(object sender, RoutedEventArgs e)
+    {
+        var selected = GetSelectedProcess();
+        if (selected is null)
+            return;
+
+        var apiKey = GetApiKey();
+        if (!string.IsNullOrWhiteSpace(apiKey))
+            new AiAnalysisWindow(apiKey, [CreateProcessMemoryInfo(selected)]) { Owner = this }.ShowDialog();
+    }
+
+    private void ChatAboutSelectedProcessButton_Click(object sender, RoutedEventArgs e)
+    {
+        var apiKey = GetApiKey();
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            var processes = _processRows
+                .OrderBy(row => row.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(row => row.Id)
+                .Select(CreateProcessMemoryInfo)
+                .ToArray();
+            var selectedProcess = ProcessesGrid.SelectedItem is ProcessRow selected
+                ? CreateProcessMemoryInfo(selected)
+                : null;
+            new AiChatWindow(apiKey, processes, selectedProcess) { Owner = this }.ShowDialog();
+        }
+    }
+
+    private ProcessRow? GetSelectedProcess()
+    {
+        if (ProcessesGrid.SelectedItem is ProcessRow selected)
+            return selected;
+
+        MessageBox.Show(this, "Select a process in the list first, then reopen AI assistant.",
+            "AI assistant", MessageBoxButton.OK, MessageBoxImage.Information);
+        return null;
+    }
+
+    private static ProcessMemoryInfo CreateProcessMemoryInfo(ProcessRow row) =>
+        new(row.Name, row.Id, row.CpuPercent, row.WorkingSetBytes, row.PrivateCommitBytes);
+
+    private string? GetApiKey()
+    {
+        string? apiKey;
+        try
+        {
+            apiKey = AiSettingsStore.LoadApiKey();
+        }
+        catch (CryptographicException ex)
+        {
+            MessageBox.Show(this, $"Could not read the saved API key: {ex.Message}", "AI settings",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+            return null;
+        }
+        catch (IOException ex)
+        {
+            MessageBox.Show(this, $"Could not read the saved API key: {ex.Message}", "AI settings",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+            return null;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            MessageBox.Show(this, $"Could not read the saved API key: {ex.Message}", "AI settings",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            if (new AiSettingsWindow { Owner = this }.ShowDialog() != true)
+                return null;
+
+            try
+            {
+                apiKey = AiSettingsStore.LoadApiKey();
+            }
+            catch (CryptographicException ex)
+            {
+                MessageBox.Show(this, $"Could not read the saved API key: {ex.Message}", "AI settings",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return null;
+            }
+            catch (IOException ex)
+            {
+                MessageBox.Show(this, $"Could not read the saved API key: {ex.Message}", "AI settings",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return null;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                MessageBox.Show(this, $"Could not read the saved API key: {ex.Message}", "AI settings",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return null;
+            }
+        }
+
+        return string.IsNullOrWhiteSpace(apiKey) ? null : apiKey;
+    }
 
     private void SearchBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
     {
@@ -248,7 +383,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private static string FormatBytes(ulong bytes)
+    internal static string FormatBytes(ulong bytes)
     {
         string[] units = ["B", "KB", "MB", "GB", "TB"];
         var value = (double)bytes;

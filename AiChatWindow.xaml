@@ -1,0 +1,74 @@
+<Window x:Class="TaskManagerPlusPlus.AiChatWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Ask AI about process" Height="700" Width="850" MinHeight="500" MinWidth="600"
+        Background="{StaticResource WindowBrush}" Foreground="{StaticResource TextBrush}"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Chat about a process" FontSize="22" FontWeight="SemiBold" />
+        <Grid Grid.Row="1" Margin="0,8,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="PROCESS" VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold"
+                       Foreground="{StaticResource MutedBrush}" Margin="0,0,12,0" />
+            <ComboBox x:Name="ProcessBox" Grid.Column="1" Height="38" Padding="8,5"
+                      DisplayMemberPath="DisplayLabel" SelectionChanged="ProcessBox_SelectionChanged"
+                      Background="#0D1525" Foreground="{StaticResource TextBrush}"
+                      BorderBrush="{StaticResource PanelBorderBrush}" />
+        </Grid>
+        <Grid Grid.Row="2" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="MODEL" VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold"
+                       Foreground="{StaticResource MutedBrush}" Margin="0,0,12,0" />
+            <ComboBox x:Name="ModelBox" Grid.Column="1" Height="38" IsEditable="True" Padding="8,5"
+                      IsTextSearchEnabled="True"
+                      Background="#0D1525" Foreground="{StaticResource TextBrush}"
+                      BorderBrush="{StaticResource PanelBorderBrush}">
+                <ComboBox.ItemContainerStyle>
+                    <Style TargetType="ComboBoxItem">
+                        <Setter Property="Background" Value="#0D1525" />
+                        <Setter Property="Foreground" Value="#EDF3FC" />
+                        <Setter Property="Padding" Value="8,6" />
+                    </Style>
+                </ComboBox.ItemContainerStyle>
+            </ComboBox>
+            <Button x:Name="LoadModelsButton" Grid.Column="2" Content="Load models"
+                    Click="LoadModelsButton_Click" Margin="8,0,0,0"
+                    ToolTip="Fetch model IDs available to this NVIDIA API key" />
+        </Grid>
+        <TextBox x:Name="ConversationText" Grid.Row="3" IsReadOnly="True" AcceptsReturn="True"
+                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                 Padding="14" Background="#0D1525" Foreground="{StaticResource TextBrush}"
+                 BorderBrush="{StaticResource PanelBorderBrush}" FontSize="13" />
+        <TextBlock x:Name="StatusText" Grid.Row="4" Margin="0,8,0,8"
+                   Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
+        <Grid Grid.Row="5">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="QuestionBox" MinHeight="42" MaxHeight="110" Padding="10"
+                     AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                     Background="#0D1525" Foreground="{StaticResource TextBrush}"
+                     BorderBrush="{StaticResource PanelBorderBrush}"
+                     ToolTip="Type your question about the selected process" />
+            <Button x:Name="SendButton" Grid.Column="1" Content="Send" Click="SendButton_Click"
+                    Margin="10,0,0,0" MinWidth="86" />
+        </Grid>
+    </Grid>
+</Window>

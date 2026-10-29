@@ -96,12 +96,13 @@
                 <Button x:Name="AiAssistantButton" Content="AI assistant ▾" Click="AiAssistantButton_Click"
                         Background="{StaticResource AccentBrush}" Foreground="#0B1020"
                         FontWeight="SemiBold" Margin="0,0,8,0"
-                        ToolTip="Analyze the five processes using the most RAM or manage your AI API key">
+                        ToolTip="Analyze processes, run a deep scan, or manage your AI settings">
                     <Button.ContextMenu>
                         <ContextMenu Background="#080B12" BorderBrush="#35435A" BorderThickness="1">
                             <ContextMenu.Resources>
                                 <Style TargetType="MenuItem" BasedOn="{StaticResource AiMenuItem}" />
                             </ContextMenu.Resources>
+                            <MenuItem Header="Deep scan &amp; optimize (top 40 RAM users)" Click="DeepScanProcessesButton_Click" />
                             <MenuItem Header="Scan top 5 RAM users" Click="AnalyzeProcessesButton_Click" />
                             <MenuItem Header="Analyze selected process" Click="AnalyzeSelectedProcessButton_Click" />
                             <MenuItem Header="Open AI chat…" Click="ChatAboutSelectedProcessButton_Click" />
@@ -192,6 +193,6 @@
         </Border>
 
         <TextBlock Grid.Row="3" Margin="2,12,0,0" FontSize="11" Foreground="{StaticResource MutedBrush}"
-                   Text="RAM in use is physical memory currently resident. Memory allocated can be larger because some committed memory may be paged out. Shared RAM pages can appear in more than one process." />
+                   Text="RAM in use is physical memory currently resident. Memory allocated can be larger because some committed memory may be paged out. Shared RAM pages can appear in more than one process. Right-click a process for CPU, RAM history, and GPU / VRAM details." />
     </Grid>
 </Window>

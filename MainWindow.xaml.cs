@@ -5,6 +5,8 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Data;
 using System.Windows.Threading;
 
@@ -12,17 +14,27 @@ namespace TaskManagerPlusPlus;
 
 public partial class MainWindow : Window
 {
+    private static readonly HashSet<string> AiTerminationBlockedProcessNames = new(
+        [
+            "csrss", "wininit", "winlogon", "services", "lsass", "smss",
+            "system", "registry", "secure system", "svchost", "msmpeng",
+            "taskmanagerplusplus"
+        ],
+        StringComparer.OrdinalIgnoreCase);
+
     private readonly ObservableCollection<ProcessRow> _processRows = [];
     private readonly Dictionary<int, CpuSample> _cpuSamples = [];
     private readonly DispatcherTimer _refreshTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     private ICollectionView _processView = null!;
     private DateTime _lastCpuSample = DateTime.UtcNow;
+    private string _gpuCounterStatus = "GPU memory counters have not been sampled yet.";
 
     public MainWindow()
     {
         InitializeComponent();
         _processView = CollectionViewSource.GetDefaultView(_processRows);
         ProcessesGrid.ItemsSource = _processView;
+        ProcessesGrid.LoadingRow += ProcessesGrid_LoadingRow;
         _refreshTimer.Tick += (_, _) => RefreshData();
         Loaded += (_, _) =>
         {
@@ -79,6 +91,45 @@ public partial class MainWindow : Window
             new AiAnalysisWindow(apiKey, [CreateProcessMemoryInfo(selected)]) { Owner = this }.ShowDialog();
     }
 
+    private void DeepScanProcessesButton_Click(object sender, RoutedEventArgs e)
+    {
+        var apiKey = GetApiKey();
+        if (string.IsNullOrWhiteSpace(apiKey))
+            return;
+
+        AiProcessActionMode actionMode;
+        try
+        {
+            actionMode = AiSettingsStore.LoadProcessActionMode();
+        }
+        catch (IOException ex)
+        {
+            MessageBox.Show(this, $"Could not load the AI process action preference: {ex.Message}",
+                "AI settings", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            MessageBox.Show(this, $"Could not load the AI process action preference: {ex.Message}",
+                "AI settings", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        var processes = _processRows
+            .OrderByDescending(row => row.WorkingSetBytes)
+            .Take(40)
+            .Select(CreateProcessMemoryInfo)
+            .ToArray();
+        if (processes.Length == 0)
+        {
+            MessageBox.Show(this, "No process data is currently available.", "AI deep scan",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        new AiDeepScanWindow(this, apiKey, processes, actionMode) { Owner = this }.ShowDialog();
+    }
+
     private void ChatAboutSelectedProcessButton_Click(object sender, RoutedEventArgs e)
     {
         var apiKey = GetApiKey();
@@ -107,7 +158,16 @@ public partial class MainWindow : Window
     }
 
     private static ProcessMemoryInfo CreateProcessMemoryInfo(ProcessRow row) =>
-        new(row.Name, row.Id, row.CpuPercent, row.WorkingSetBytes, row.PrivateCommitBytes);
+        new(
+            row.Name,
+            row.Id,
+            row.CpuPercent,
+            row.WorkingSetBytes,
+            row.PrivateCommitBytes,
+            row.DedicatedGpuBytes,
+            row.SharedGpuBytes,
+            row.CreateHistorySummary(),
+            row.StartTimeUtc);
 
     private string? GetApiKey()
     {
@@ -251,6 +311,130 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ProcessRow_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is DataGridRow row)
+        {
+            row.IsSelected = true;
+            ProcessesGrid.SelectedItem = row.Item;
+        }
+    }
+
+    private void ProcessesGrid_LoadingRow(object? sender, DataGridRowEventArgs e)
+    {
+        e.Row.PreviewMouseRightButtonDown -= ProcessRow_PreviewMouseRightButtonDown;
+        e.Row.PreviewMouseRightButtonDown += ProcessRow_PreviewMouseRightButtonDown;
+        e.Row.ContextMenu = CreateProcessContextMenu();
+    }
+
+    private ContextMenu CreateProcessContextMenu()
+    {
+        var contextMenu = new ContextMenu
+        {
+            Background = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromRgb(0x08, 0x0B, 0x12)),
+            BorderBrush = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromRgb(0x35, 0x43, 0x5A)),
+            BorderThickness = new Thickness(1)
+        };
+        contextMenu.Items.Add(CreateMenuItem(
+            "History",
+            null,
+            CreateMenuItem("RAM history", (_, _) => ShowProcessHistory(ProcessHistoryMetric.Ram))));
+
+        var cpuMenu = CreateMenuItem("CPU",
+            null,
+            CreateMenuItem("Current CPU details…", CpuDetailsMenuItem_Click),
+            CreateMenuItem("CPU history chart", (_, _) => ShowProcessHistory(ProcessHistoryMetric.Cpu)));
+        contextMenu.Items.Add(cpuMenu);
+
+        var gpuMenu = CreateMenuItem("GPU / VRAM",
+            null,
+            CreateMenuItem("Current VRAM details…", GpuDetailsMenuItem_Click),
+            CreateMenuItem("Dedicated VRAM history", (_, _) => ShowProcessHistory(ProcessHistoryMetric.DedicatedGpu)),
+            CreateMenuItem("Shared GPU memory history", (_, _) => ShowProcessHistory(ProcessHistoryMetric.SharedGpu)));
+        contextMenu.Items.Add(gpuMenu);
+        return contextMenu;
+    }
+
+    private static MenuItem CreateMenuItem(
+        string header,
+        RoutedEventHandler? click = null,
+        params MenuItem[] children)
+    {
+        var item = new MenuItem
+        {
+            Header = header,
+            Foreground = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromRgb(0xED, 0xF3, 0xFC)),
+            Background = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromRgb(0x08, 0x0B, 0x12)),
+            Padding = new Thickness(14, 8, 14, 8)
+        };
+        if (click is not null)
+            item.Click += click;
+        foreach (var child in children)
+            item.Items.Add(child);
+        return item;
+    }
+
+    private void CpuHistoryMenuItem_Click(object sender, RoutedEventArgs e) =>
+        ShowProcessHistory(ProcessHistoryMetric.Cpu);
+
+    private void RamHistoryMenuItem_Click(object sender, RoutedEventArgs e) =>
+        ShowProcessHistory(ProcessHistoryMetric.Ram);
+
+    private void DedicatedGpuHistoryMenuItem_Click(object sender, RoutedEventArgs e) =>
+        ShowProcessHistory(ProcessHistoryMetric.DedicatedGpu);
+
+    private void SharedGpuHistoryMenuItem_Click(object sender, RoutedEventArgs e) =>
+        ShowProcessHistory(ProcessHistoryMetric.SharedGpu);
+
+    private void ShowProcessHistory(ProcessHistoryMetric metric)
+    {
+        if (ProcessesGrid.SelectedItem is not ProcessRow selected)
+            return;
+
+        new ProcessHistoryWindow(selected.Name, selected.Id, selected.History.ToArray(), metric)
+        {
+            Owner = this
+        }.ShowDialog();
+    }
+
+    private void CpuDetailsMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (ProcessesGrid.SelectedItem is not ProcessRow selected)
+            return;
+
+        var samples = selected.History.Select(sample => sample.CpuPercent).ToArray();
+        var average = samples.Length == 0 ? 0 : samples.Average();
+        var peak = samples.Length == 0 ? 0 : samples.Max();
+        MessageBox.Show(this,
+            $"{selected.Name} (PID {selected.Id})\n\n"
+            + $"Current CPU: {selected.CpuPercent:N1}%\n"
+            + $"Average since app start: {average:N1}%\n"
+            + $"Peak since app start: {peak:N1}%\n"
+            + $"Samples: {samples.Length:N0}",
+            "CPU details", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private void GpuDetailsMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (ProcessesGrid.SelectedItem is not ProcessRow selected)
+            return;
+
+        var latestSample = selected.History.LastOrDefault();
+        var gpuInfo = latestSample?.DedicatedGpuBytes is ulong dedicated
+            && latestSample.SharedGpuBytes is ulong shared
+            ? $"Dedicated VRAM: {FormatBytes(dedicated)}\nShared GPU memory: {FormatBytes(shared)}"
+            : $"Per-process GPU memory is unavailable.\n{_gpuCounterStatus}";
+        MessageBox.Show(this,
+            $"{selected.Name} (PID {selected.Id})\n\n{gpuInfo}\n\n"
+            + "Dedicated VRAM and shared GPU memory are read from Windows GPU Process Memory counters. "
+            + "They may be unavailable on systems without GPU performance counters.",
+            "GPU / VRAM details", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
     private void UpdateProcesses(double elapsedSeconds, int processorCount)
     {
         var currentIds = new HashSet<int>();
@@ -266,6 +450,19 @@ public partial class MainWindow : Window
                     process.Refresh();
                     var id = process.Id;
                     var cpuTime = process.TotalProcessorTime;
+                    DateTime? startTimeUtc = null;
+                    try
+                    {
+                        startTimeUtc = process.StartTime.ToUniversalTime();
+                    }
+                    catch (Win32Exception)
+                    {
+                        inaccessibleCount++;
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        inaccessibleCount++;
+                    }
                     var cpuPercent = 0d;
                     if (_cpuSamples.TryGetValue(id, out var previous))
                     {
@@ -286,7 +483,8 @@ public partial class MainWindow : Window
                             id,
                             cpuPercent,
                             counters.WorkingSetSize.ToUInt64(),
-                            counters.PrivateUsage.ToUInt64()));
+                            counters.PrivateUsage.ToUInt64(),
+                            startTimeUtc));
                     }
                     else
                     {
@@ -306,6 +504,20 @@ public partial class MainWindow : Window
 
         foreach (var oldId in _cpuSamples.Keys.Where(id => !currentIds.Contains(id)).ToArray())
             _cpuSamples.Remove(oldId);
+
+        if (GpuMemoryCounterReader.TryRead(out var gpuUsage, out var gpuError))
+        {
+            _gpuCounterStatus = "Windows GPU memory counters are available.";
+            foreach (var row in rows)
+            {
+                if (gpuUsage.TryGetValue(row.Id, out var memory))
+                    row.SetGpuUsage(memory.DedicatedBytes, memory.SharedBytes);
+            }
+        }
+        else
+        {
+            _gpuCounterStatus = gpuError;
+        }
 
         var byId = _processRows.ToDictionary(row => row.Id);
         foreach (var row in rows)
@@ -363,23 +575,55 @@ public partial class MainWindow : Window
         if (answer != MessageBoxResult.Yes)
             return;
 
+        var target = CreateProcessMemoryInfo(selected);
+        TryEndProcess(target, out var message);
+        ProcessCountText.Text = message;
+    }
+
+    internal bool TryEndProcess(ProcessMemoryInfo target, out string message)
+    {
+        if (target.Id <= 4
+            || target.Id == Environment.ProcessId
+            || AiTerminationBlockedProcessNames.Contains(target.Name)
+            || !target.StartTimeUtc.HasValue)
+        {
+            message = $"Ending {target.Name} (PID {target.Id}) is blocked for safety.";
+            return false;
+        }
+
         try
         {
-            using var process = Process.GetProcessById(selected.Id);
+            using var process = Process.GetProcessById(target.Id);
+            if (!string.Equals(process.ProcessName, target.Name, StringComparison.OrdinalIgnoreCase)
+                || process.StartTime.ToUniversalTime() != target.StartTimeUtc.Value)
+            {
+                message = $"Process {target.Id} changed or exited after the scan; it was not ended.";
+                return false;
+            }
+
             process.Kill();
-            ProcessCountText.Text = $"End-task request sent to {selected.Name} (PID {selected.Id}).";
+            message = $"End-task request sent to {target.Name} (PID {target.Id}).";
+            return true;
         }
         catch (ArgumentException)
         {
-            ProcessCountText.Text = $"Process {selected.Id} has already exited.";
+            message = $"Process {target.Id} has already exited.";
+            return false;
         }
         catch (Win32Exception ex)
         {
-            ProcessCountText.Text = $"Could not end {selected.Name}: {ex.Message}";
+            message = $"Could not end {target.Name} (PID {target.Id}): {ex.Message}";
+            return false;
         }
         catch (InvalidOperationException ex)
         {
-            ProcessCountText.Text = $"Could not end {selected.Name}: {ex.Message}";
+            message = $"Could not end {target.Name} (PID {target.Id}): {ex.Message}";
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            message = $"Could not end {target.Name} (PID {target.Id}): {ex.Message}";
+            return false;
         }
     }
 
@@ -405,28 +649,91 @@ public partial class MainWindow : Window
 
         public string Name { get; private set; }
         public int Id { get; }
+        public DateTime? StartTimeUtc { get; private set; }
         public double CpuPercent { get; private set; }
         public ulong WorkingSetBytes { get; private set; }
         public string WorkingSetText => FormatBytes(WorkingSetBytes);
         public ulong PrivateCommitBytes { get; private set; }
         public string PrivateCommitText => FormatBytes(PrivateCommitBytes);
+        public ulong? DedicatedGpuBytes { get; private set; }
+        public ulong? SharedGpuBytes { get; private set; }
+        public List<ProcessUsageSample> History { get; } = [];
 
-        public ProcessRow(string name, int id, double cpuPercent, ulong workingSet, ulong privateCommitBytes)
+        public ProcessRow(
+            string name,
+            int id,
+            double cpuPercent,
+            ulong workingSet,
+            ulong privateCommitBytes,
+            DateTime? startTimeUtc)
         {
             Name = name;
             Id = id;
+            StartTimeUtc = startTimeUtc;
             CpuPercent = cpuPercent;
             WorkingSetBytes = workingSet;
             PrivateCommitBytes = privateCommitBytes;
+            AddHistorySample();
         }
 
         public void UpdateFrom(ProcessRow row)
         {
             Name = row.Name;
+            StartTimeUtc = row.StartTimeUtc;
             CpuPercent = row.CpuPercent;
             WorkingSetBytes = row.WorkingSetBytes;
             PrivateCommitBytes = row.PrivateCommitBytes;
+            DedicatedGpuBytes = row.DedicatedGpuBytes;
+            SharedGpuBytes = row.SharedGpuBytes;
+            AddHistorySample();
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
+        }
+
+        public void SetGpuUsage(ulong dedicatedGpuBytes, ulong sharedGpuBytes)
+        {
+            DedicatedGpuBytes = dedicatedGpuBytes;
+            SharedGpuBytes = sharedGpuBytes;
+            if (History.Count > 0)
+                History[^1] = History[^1] with
+                {
+                    DedicatedGpuBytes = dedicatedGpuBytes,
+                    SharedGpuBytes = sharedGpuBytes
+                };
+        }
+
+        public ProcessHistorySummary? CreateHistorySummary()
+        {
+            if (History.Count == 0)
+                return null;
+
+            var dedicatedGpuSamples = History
+                .Where(sample => sample.DedicatedGpuBytes.HasValue)
+                .Select(sample => (double)sample.DedicatedGpuBytes!.Value)
+                .ToArray();
+            var sharedGpuSamples = History
+                .Where(sample => sample.SharedGpuBytes.HasValue)
+                .Select(sample => (double)sample.SharedGpuBytes!.Value)
+                .ToArray();
+            return new ProcessHistorySummary(
+                History.Count,
+                Math.Max(0, (History[^1].Timestamp - History[0].Timestamp).TotalMinutes),
+                History.Average(sample => sample.CpuPercent),
+                History.Max(sample => sample.CpuPercent),
+                History.Average(sample => (double)sample.WorkingSetBytes),
+                History.Max(sample => (double)sample.WorkingSetBytes),
+                dedicatedGpuSamples.Length == 0 ? null : dedicatedGpuSamples.Average(),
+                dedicatedGpuSamples.Length == 0 ? null : dedicatedGpuSamples.Max(),
+                sharedGpuSamples.Length == 0 ? null : sharedGpuSamples.Average(),
+                sharedGpuSamples.Length == 0 ? null : sharedGpuSamples.Max());
+        }
+
+        private void AddHistorySample()
+        {
+            var now = DateTime.Now;
+            History.Add(new ProcessUsageSample(now, CpuPercent, WorkingSetBytes, DedicatedGpuBytes, SharedGpuBytes));
+            var cutoff = now.AddMinutes(-30);
+            while (History.Count > 900 || (History.Count > 1 && History[0].Timestamp < cutoff))
+                History.RemoveAt(0);
         }
     }
 

@@ -1,11 +1,14 @@
 <Window x:Class="TaskManagerPlusPlus.AiSettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="AI settings" Height="460" Width="640" MinHeight="420" MinWidth="560"
+        Title="AI settings" Height="610" Width="640" MinHeight="560" MinWidth="560"
         Background="{StaticResource WindowBrush}" Foreground="{StaticResource TextBrush}"
         WindowStartupLocation="CenterOwner" ResizeMode="CanResize">
     <Grid Margin="24">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -50,9 +53,28 @@
         <PasswordBox x:Name="ApiKeyBox" Grid.Row="5" Height="38" Padding="10,8"
                      Background="#0D1525" Foreground="{StaticResource TextBrush}"
                      BorderBrush="{StaticResource PanelBorderBrush}" />
-        <TextBlock x:Name="StatusText" Grid.Row="6" Margin="0,10,0,0"
+        <TextBlock Grid.Row="6" Text="DEEP SCAN PROCESS ACTIONS" FontSize="11" FontWeight="SemiBold"
+                   Foreground="{StaticResource MutedBrush}" Margin="0,14,0,5" />
+        <ComboBox x:Name="ProcessActionModeBox" Grid.Row="7" Height="38" Padding="8,5"
+                  SelectionChanged="ProcessActionModeBox_SelectionChanged"
+                  Background="#0D1525" Foreground="{StaticResource TextBrush}"
+                  BorderBrush="{StaticResource PanelBorderBrush}">
+            <ComboBox.ItemContainerStyle>
+                <Style TargetType="ComboBoxItem">
+                    <Setter Property="Background" Value="#0D1525" />
+                    <Setter Property="Foreground" Value="#EDF3FC" />
+                    <Setter Property="Padding" Value="8,6" />
+                </Style>
+            </ComboBox.ItemContainerStyle>
+            <ComboBoxItem Content="Ask before ending each process (recommended)" />
+            <ComboBoxItem Content="Automatically end AI recommendations" />
+        </ComboBox>
+        <TextBlock Grid.Row="8" Margin="0,6,0,0" TextWrapping="Wrap"
+                   Foreground="{StaticResource MutedBrush}"
+                   Text="Automatic mode applies only to Deep Scan recommendations. Ending a process may lose unsaved work; system-critical processes are always blocked. This choice is saved immediately." />
+        <TextBlock x:Name="StatusText" Grid.Row="9" Margin="0,10,0,0"
                    Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
-        <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right">
+        <StackPanel Grid.Row="11" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Remove saved key" Click="RemoveKeyButton_Click" Margin="0,0,8,0" />
             <Button Content="Cancel" Click="CancelButton_Click" Margin="0,0,8,0" />
             <Button Content="Save settings" Click="SaveKeyButton_Click" />

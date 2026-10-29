@@ -9,12 +9,18 @@ namespace TaskManagerPlusPlus;
 
 public partial class AiSettingsWindow : Window
 {
+    private bool _initializingProcessActionMode = true;
+    private AiProcessActionMode _savedProcessActionMode = AiProcessActionMode.AskBeforeTerminating;
+
     public AiSettingsWindow()
     {
         InitializeComponent();
         try
         {
             ModelBox.Text = AiSettingsStore.LoadModel();
+            _savedProcessActionMode = AiSettingsStore.LoadProcessActionMode();
+            ProcessActionModeBox.SelectedIndex =
+                _savedProcessActionMode == AiProcessActionMode.Automatic ? 1 : 0;
             StatusText.Text = AiSettingsStore.HasSavedApiKey
                 ? "A key is saved. Enter a new key only if you want to replace it."
                 : "No API key is saved yet.";
@@ -23,6 +29,14 @@ public partial class AiSettingsWindow : Window
         {
             StatusText.Text = $"Could not load AI settings: {ex.Message}";
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            StatusText.Text = $"Could not load AI settings: {ex.Message}";
+        }
+        finally
+        {
+            _initializingProcessActionMode = false;
+        }
     }
 
     private void SaveKeyButton_Click(object sender, RoutedEventArgs e)
@@ -30,6 +44,7 @@ public partial class AiSettingsWindow : Window
         try
         {
             AiSettingsStore.SaveModel(ModelBox.Text);
+            AiSettingsStore.SaveProcessActionMode(GetSelectedProcessActionMode());
             if (!string.IsNullOrWhiteSpace(ApiKeyBox.Password))
                 AiSettingsStore.SaveApiKey(ApiKeyBox.Password);
             else if (!AiSettingsStore.HasSavedApiKey)
@@ -59,6 +74,43 @@ public partial class AiSettingsWindow : Window
         {
             ShowStorageError(ex);
         }
+    }
+
+    private void ProcessActionModeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_initializingProcessActionMode || ProcessActionModeBox.SelectedIndex < 0)
+            return;
+
+        try
+        {
+            var selectedMode = GetSelectedProcessActionMode();
+            AiSettingsStore.SaveProcessActionMode(selectedMode);
+            _savedProcessActionMode = selectedMode;
+            StatusText.Text = "Deep scan process action preference saved.";
+        }
+        catch (IOException ex)
+        {
+            RestoreProcessActionMode();
+            StatusText.Text = $"Could not save the process action preference: {ex.Message}";
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            RestoreProcessActionMode();
+            StatusText.Text = $"Could not save the process action preference: {ex.Message}";
+        }
+    }
+
+    private AiProcessActionMode GetSelectedProcessActionMode() =>
+        ProcessActionModeBox.SelectedIndex == 1
+            ? AiProcessActionMode.Automatic
+            : AiProcessActionMode.AskBeforeTerminating;
+
+    private void RestoreProcessActionMode()
+    {
+        _initializingProcessActionMode = true;
+        ProcessActionModeBox.SelectedIndex =
+            _savedProcessActionMode == AiProcessActionMode.Automatic ? 1 : 0;
+        _initializingProcessActionMode = false;
     }
 
     private async void LoadModelsButton_Click(object sender, RoutedEventArgs e)

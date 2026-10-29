@@ -4,6 +4,12 @@ using System.Text;
 
 namespace TaskManagerPlusPlus;
 
+internal enum AiProcessActionMode
+{
+    AskBeforeTerminating,
+    Automatic
+}
+
 internal static class AiSettingsStore
 {
     private static readonly string KeyFilePath = Path.Combine(
@@ -14,6 +20,10 @@ internal static class AiSettingsStore
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "TaskManager++",
         "ai-model.txt");
+    private static readonly string ProcessActionModeFilePath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "TaskManager++",
+        "ai-process-action-mode.txt");
     public const string DefaultModel = "nvidia/nemotron-3.5-bolt-e4b";
 
     public static bool HasSavedApiKey => File.Exists(KeyFilePath);
@@ -38,6 +48,34 @@ internal static class AiSettingsStore
             ?? throw new InvalidOperationException("The AI model storage path is invalid.");
         Directory.CreateDirectory(directory);
         File.WriteAllText(ModelFilePath, model.Trim());
+    }
+
+    public static AiProcessActionMode LoadProcessActionMode()
+    {
+        if (!File.Exists(ProcessActionModeFilePath))
+            return AiProcessActionMode.AskBeforeTerminating;
+
+        return File.ReadAllText(ProcessActionModeFilePath).Trim() switch
+        {
+            "ask" => AiProcessActionMode.AskBeforeTerminating,
+            "automatic" => AiProcessActionMode.Automatic,
+            _ => throw new InvalidDataException(
+                "The saved AI process action mode is invalid. Open AI settings and choose a process action mode.")
+        };
+    }
+
+    public static void SaveProcessActionMode(AiProcessActionMode mode)
+    {
+        var value = mode switch
+        {
+            AiProcessActionMode.AskBeforeTerminating => "ask",
+            AiProcessActionMode.Automatic => "automatic",
+            _ => throw new ArgumentOutOfRangeException(nameof(mode))
+        };
+        var directory = Path.GetDirectoryName(ProcessActionModeFilePath)
+            ?? throw new InvalidOperationException("The AI process action storage path is invalid.");
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(ProcessActionModeFilePath, value);
     }
 
     public static string? LoadApiKey()

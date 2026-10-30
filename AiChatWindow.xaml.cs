@@ -45,6 +45,7 @@ public partial class AiChatWindow : Window
         ConversationText.Text = selectedProcess is null
             ? "General chat is ready. Ask a question, or choose a running process above for focused context."
             : $"Chatting about {selectedProcess.Name} (PID {selectedProcess.Id}).";
+        StateChanged += (_, _) => UpdateMaximizeIcon();
     }
 
     private void ProcessBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -184,5 +185,30 @@ public partial class AiChatWindow : Window
             : $"{ConversationText.Text}{Environment.NewLine}{Environment.NewLine}{speaker}: {message}";
         ConversationText.CaretIndex = ConversationText.Text.Length;
         ConversationText.ScrollToEnd();
+    }
+
+    private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
+
+    private void WindowMinimize_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState.Minimized;
+    }
+
+    private void WindowMaximize_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    }
+
+    private void UpdateMaximizeIcon()
+    {
+        if (FindName("MaximizeIcon") is System.Windows.Shapes.Path icon)
+        {
+            icon.Data = (System.Windows.Media.Geometry)FindResource(
+                WindowState == WindowState.Maximized ? "IconRestore" : "IconMaximize");
+        }
+        if (FindName("MaximizeButton") is System.Windows.Controls.Button btn)
+        {
+            btn.ToolTip = WindowState == WindowState.Maximized ? "Restore" : "Maximize";
+        }
     }
 }

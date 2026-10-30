@@ -28,6 +28,7 @@ public partial class MemoryChartWindow : Window
     public MemoryChartWindow(ulong usedBytes, IReadOnlyList<(string Name, int Id, ulong Bytes)> processMemory)
     {
         InitializeComponent();
+        StateChanged += (_, _) => UpdateMaximizeIcon();
 
         var processWorkingSetTotal = processMemory.Aggregate(0UL, (total, process) => total + process.Bytes);
         SystemMemoryText.Text = $"{FormatBytes(usedBytes)} physical RAM in use system-wide";
@@ -129,6 +130,34 @@ public partial class MemoryChartWindow : Window
             unit++;
         }
         return $"{value.ToString("N1", CultureInfo.CurrentCulture)} {units[unit]}";
+    }
+
+    private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState.Minimized;
+    }
+
+    private void MaximizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    }
+
+    private void CloseButton_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
+    private void UpdateMaximizeIcon()
+    {
+        if (FindName("MaximizeIcon") is System.Windows.Shapes.Path icon)
+        {
+            icon.Data = (System.Windows.Media.Geometry)FindResource(
+                WindowState == WindowState.Maximized ? "IconRestore" : "IconMaximize");
+        }
+        if (FindName("MaximizeButton") is System.Windows.Controls.Button btn)
+        {
+            btn.ToolTip = WindowState == WindowState.Maximized ? "Restore" : "Maximize";
+        }
     }
 
     private sealed record ChartSlice(string Label, ulong Bytes, Color Color);

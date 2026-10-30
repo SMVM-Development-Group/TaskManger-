@@ -41,8 +41,53 @@ public partial class MainWindow : Window
             RefreshData();
             _refreshTimer.Start();
         };
+        SourceInitialized += (_, _) => EnableRoundedCorners();
+        StateChanged += (_, _) => UpdateMaximizeIcon();
         Closed += (_, _) => _refreshTimer.Stop();
     }
+
+    private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState.Minimized;
+    }
+
+    private void MaximizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    }
+
+    private void CloseButton_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
+    private void UpdateMaximizeIcon()
+    {
+        if (FindName("MaximizeIcon") is System.Windows.Shapes.Path icon)
+        {
+            icon.Data = (System.Windows.Media.Geometry)FindResource(
+                WindowState == WindowState.Maximized ? "IconRestore" : "IconMaximize");
+        }
+        if (FindName("MaximizeButton") is System.Windows.Controls.Button btn)
+        {
+            btn.ToolTip = WindowState == WindowState.Maximized ? "Restore" : "Maximize";
+        }
+    }
+
+    private void EnableRoundedCorners()
+    {
+        try
+        {
+            var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero) return;
+            int preference = 2; // DWMWCP_ROUND
+            DwmSetWindowAttribute(hwnd, 33 /* DWMWA_WINDOW_CORNER_PREFERENCE */, ref preference, sizeof(int));
+        }
+        catch { }
+    }
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 
     private void RefreshButton_Click(object sender, RoutedEventArgs e) => RefreshData();
 

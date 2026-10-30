@@ -37,6 +37,7 @@ public partial class AiSettingsWindow : Window
         {
             _initializingProcessActionMode = false;
         }
+        StateChanged += (_, _) => UpdateMaximizeIcon();
     }
 
     private void SaveKeyButton_Click(object sender, RoutedEventArgs e)
@@ -211,6 +212,29 @@ public partial class AiSettingsWindow : Window
     }
 
     private void CancelButton_Click(object sender, RoutedEventArgs e) => Close();
+
+    private void WindowMinimize_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState.Minimized;
+    }
+
+    private void WindowMaximize_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    }
+
+    private void UpdateMaximizeIcon()
+    {
+        if (FindName("MaximizeIcon") is System.Windows.Shapes.Path icon)
+        {
+            icon.Data = (System.Windows.Media.Geometry)FindResource(
+                WindowState == WindowState.Maximized ? "IconRestore" : "IconMaximize");
+        }
+        if (FindName("MaximizeButton") is System.Windows.Controls.Button btn)
+        {
+            btn.ToolTip = WindowState == WindowState.Maximized ? "Restore" : "Maximize";
+        }
+    }
 
     private void ShowStorageError(Exception exception)
     {

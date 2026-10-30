@@ -1,83 +1,137 @@
 <Window x:Class="TaskManagerPlusPlus.AiSettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="AI settings" Height="610" Width="640" MinHeight="560" MinWidth="560"
-        Background="{StaticResource WindowBrush}" Foreground="{StaticResource TextBrush}"
-        WindowStartupLocation="CenterOwner" ResizeMode="CanResize">
-    <Grid Margin="24">
+        Background="{DynamicResource Bg0}"
+        Foreground="{DynamicResource TextPrimary}"
+        FontFamily="{StaticResource AppFont}"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResize"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType">
+
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="40" ResizeBorderThickness="6" GlassFrameThickness="0"
+                            CornerRadius="0" UseAeroCaptionButtons="False"/>
+    </shell:WindowChrome.WindowChrome>
+
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Text="AI settings" FontSize="20" FontWeight="SemiBold" />
+        <!-- ════════════════════ Title bar ════════════════════ -->
+        <Grid Grid.Row="0" Background="{DynamicResource Bg1}" x:Name="TitleBar">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Orientation="Horizontal" Margin="14,0,0,0" VerticalAlignment="Center">
+                <Path Data="{StaticResource IconSettings}" Style="{StaticResource IconPath}"
+                      Width="15" Height="15" Stroke="{DynamicResource Accent}"/>
+                <TextBlock Text="AI settings" FontSize="13" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimary}" Margin="10,0,0,0"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Window controls -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                <Button Style="{StaticResource WindowButton}" Click="WindowMinimize_Click" ToolTip="Minimize">
+                    <Path Data="{StaticResource IconMinimize}" Style="{StaticResource IconPath}" Width="12" Height="12"
+                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                </Button>
+                <Button Style="{StaticResource WindowButton}" Click="WindowMaximize_Click" ToolTip="Maximize"
+                        x:Name="MaximizeButton">
+                    <Path x:Name="MaximizeIcon" Data="{StaticResource IconMaximize}" Style="{StaticResource IconPath}"
+                          Width="11" Height="11" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                </Button>
+                <Button Style="{StaticResource WindowCloseButton}" Click="CancelButton_Click" ToolTip="Close">
+                    <Path Data="{StaticResource IconClose}" Style="{StaticResource IconPath}" Width="12" Height="12"
+                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- ════════════════════ Content ════════════════════ -->
+        <Grid Grid.Row="1" Margin="24,16,24,20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+        <TextBlock Text="AI settings" Style="{StaticResource PageTitle}"/>
+
         <TextBlock Grid.Row="1" Margin="0,8,0,14" TextWrapping="Wrap"
-                   Foreground="{StaticResource MutedBrush}"
-                   Text="Select a model available through NVIDIA's API, or type a model ID. The key is encrypted for your Windows user and stored locally." />
+                   Foreground="{DynamicResource TextMuted}"
+                   Text="Select a model available through NVIDIA's API, or type a model ID. The key is encrypted for your Windows user and stored locally."/>
+
         <TextBlock Grid.Row="2" Text="MODEL" FontSize="11" FontWeight="SemiBold"
-                   Foreground="{StaticResource MutedBrush}" Margin="0,0,0,5" />
+                   Foreground="{DynamicResource TextMuted}" Margin="0,0,0,5"/>
+
         <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <ComboBox x:Name="ModelBox" Height="38" IsEditable="True" Padding="8,5"
-                      Background="#0D1525" Foreground="{StaticResource TextBrush}"
-                      BorderBrush="{StaticResource PanelBorderBrush}" IsTextSearchEnabled="True">
-                <ComboBox.ItemContainerStyle>
-                    <Style TargetType="ComboBoxItem">
-                        <Setter Property="Background" Value="#0D1525" />
-                        <Setter Property="Foreground" Value="#EDF3FC" />
-                        <Setter Property="Padding" Value="8,6" />
-                    </Style>
-                </ComboBox.ItemContainerStyle>
-                <ComboBoxItem Content="nvidia/nemotron-3.5-bolt-e4b" />
-                <ComboBoxItem Content="deepseek-ai/deepseek-v4.1-flash" />
+            <ComboBox x:Name="ModelBox" Height="38" IsEditable="True"
+                      IsTextSearchEnabled="True">
+                <ComboBoxItem Content="nvidia/nemotron-3.5-bolt-e4b"/>
+                <ComboBoxItem Content="deepseek-ai/deepseek-v4.1-flash"/>
             </ComboBox>
             <Button x:Name="LoadModelsButton" Grid.Column="1" Content="Load from API"
+                    Style="{DynamicResource BtnSecondary}"
                     Click="LoadModelsButton_Click" Margin="8,0,0,0"
-                    ToolTip="Fetch model IDs available to this NVIDIA API key" />
+                    ToolTip="Fetch model IDs available to this NVIDIA API key"/>
         </Grid>
-        <TextBlock Grid.Row="4" Text="NVIDIA API KEY (leave blank to keep the saved key)" FontSize="11"
-                   FontWeight="SemiBold" Foreground="{StaticResource MutedBrush}" Margin="0,14,0,5" />
-        <PasswordBox x:Name="ApiKeyBox" Grid.Row="5" Height="38" Padding="10,8"
-                     Background="#0D1525" Foreground="{StaticResource TextBrush}"
-                     BorderBrush="{StaticResource PanelBorderBrush}" />
-        <TextBlock Grid.Row="6" Text="DEEP SCAN PROCESS ACTIONS" FontSize="11" FontWeight="SemiBold"
-                   Foreground="{StaticResource MutedBrush}" Margin="0,14,0,5" />
-        <ComboBox x:Name="ProcessActionModeBox" Grid.Row="7" Height="38" Padding="8,5"
-                  SelectionChanged="ProcessActionModeBox_SelectionChanged"
-                  Background="#0D1525" Foreground="{StaticResource TextBrush}"
-                  BorderBrush="{StaticResource PanelBorderBrush}">
-            <ComboBox.ItemContainerStyle>
-                <Style TargetType="ComboBoxItem">
-                    <Setter Property="Background" Value="#0D1525" />
-                    <Setter Property="Foreground" Value="#EDF3FC" />
-                    <Setter Property="Padding" Value="8,6" />
-                </Style>
-            </ComboBox.ItemContainerStyle>
+        <TextBlock Grid.Row="4"
+                   Text="NVIDIA API KEY (leave blank to keep the saved key)"
+                   FontSize="11" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextMuted}" Margin="0,14,0,5"/>
+
+        <PasswordBox x:Name="ApiKeyBox" Grid.Row="5" Height="38"
+                     Background="{DynamicResource Bg2}"
+                     Foreground="{DynamicResource TextPrimary}"
+                     BorderBrush="{DynamicResource ControlBorder}"/>
+
+        <TextBlock Grid.Row="6" Text="DEEP SCAN PROCESS ACTIONS" FontSize="11"
+                   FontWeight="SemiBold" Foreground="{DynamicResource TextMuted}"
+                   Margin="0,14,0,5"/>
+
+        <ComboBox x:Name="ProcessActionModeBox" Grid.Row="7" Height="38"
+                  SelectionChanged="ProcessActionModeBox_SelectionChanged">
             <ComboBoxItem Content="Ask before ending each process (recommended)" />
             <ComboBoxItem Content="Automatically end AI recommendations" />
         </ComboBox>
         <TextBlock Grid.Row="8" Margin="0,6,0,0" TextWrapping="Wrap"
-                   Foreground="{StaticResource MutedBrush}"
-                   Text="Automatic mode applies only to Deep Scan recommendations. Ending a process may lose unsaved work; system-critical processes are always blocked. This choice is saved immediately." />
+                   Foreground="{DynamicResource TextMuted}"
+                   Text="Automatic mode applies only to Deep Scan recommendations. Ending a process may lose unsaved work; system-critical processes are always blocked. This choice is saved immediately."/>
         <TextBlock x:Name="StatusText" Grid.Row="9" Margin="0,10,0,0"
-                   Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
-        <StackPanel Grid.Row="11" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Remove saved key" Click="RemoveKeyButton_Click" Margin="0,0,8,0" />
-            <Button Content="Cancel" Click="CancelButton_Click" Margin="0,0,8,0" />
-            <Button Content="Save settings" Click="SaveKeyButton_Click" />
+                   Foreground="{DynamicResource TextMuted}" TextWrapping="Wrap"/>
+
+        <StackPanel Grid.Row="10" Orientation="Horizontal" HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom">
+            <Button Content="Remove saved key" Style="{DynamicResource BtnDanger}"
+                    Click="RemoveKeyButton_Click" Margin="0,0,8,0"/>
+            <Button Content="Cancel" Style="{DynamicResource BtnSecondary}"
+                    Click="CancelButton_Click" Margin="0,0,8,0"/>
+            <Button Content="Save settings" Style="{DynamicResource BtnPrimary}"
+                    Click="SaveKeyButton_Click"/>
         </StackPanel>
+    </Grid>
     </Grid>
 </Window>

@@ -20,7 +20,7 @@ public partial class AiSettingsWindow : Window
             ModelBox.Text = AiSettingsStore.LoadModel();
             _savedProcessActionMode = AiSettingsStore.LoadProcessActionMode();
             ProcessActionModeBox.SelectedIndex =
-                _savedProcessActionMode == AiProcessActionMode.Automatic ? 1 : 0;
+                _savedProcessActionMode == AiProcessActionMode.Autopilot ? 1 : 0;
             StatusText.Text = AiSettingsStore.HasSavedApiKey
                 ? "A key is saved. Enter a new key only if you want to replace it."
                 : "No API key is saved yet.";
@@ -103,14 +103,14 @@ public partial class AiSettingsWindow : Window
 
     private AiProcessActionMode GetSelectedProcessActionMode() =>
         ProcessActionModeBox.SelectedIndex == 1
-            ? AiProcessActionMode.Automatic
+            ? AiProcessActionMode.Autopilot
             : AiProcessActionMode.AskBeforeTerminating;
 
     private void RestoreProcessActionMode()
     {
         _initializingProcessActionMode = true;
         ProcessActionModeBox.SelectedIndex =
-            _savedProcessActionMode == AiProcessActionMode.Automatic ? 1 : 0;
+            _savedProcessActionMode == AiProcessActionMode.Autopilot ? 1 : 0;
         _initializingProcessActionMode = false;
     }
 

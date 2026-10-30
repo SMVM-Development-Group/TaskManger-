@@ -102,6 +102,11 @@ public partial class MainWindow : Window
         new AiSettingsWindow { Owner = this }.ShowDialog();
     }
 
+    private void StartupManagerButton_Click(object sender, RoutedEventArgs e)
+    {
+        new StartupManagerWindow { Owner = this }.ShowDialog();
+    }
+
     private void AnalyzeProcessesButton_Click(object sender, RoutedEventArgs e)
     {
         var apiKey = GetApiKey();
@@ -175,6 +180,51 @@ public partial class MainWindow : Window
         new AiDeepScanWindow(this, apiKey, processes, actionMode) { Owner = this }.ShowDialog();
     }
 
+    private void DebloatProcessesButton_Click(object sender, RoutedEventArgs e)
+    {
+        var apiKey = GetApiKey();
+        if (string.IsNullOrWhiteSpace(apiKey))
+            return;
+
+        AiProcessActionMode actionMode;
+        try
+        {
+            actionMode = AiSettingsStore.LoadProcessActionMode();
+        }
+        catch (IOException ex)
+        {
+            MessageBox.Show(this, $"Could not load the AI action permission setting: {ex.Message}",
+                "AI settings", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            MessageBox.Show(this, $"Could not load the AI action permission setting: {ex.Message}",
+                "AI settings", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        var processes = _processRows
+            .Select(row => (Row: row, History: row.CreateHistorySummary()))
+            .Where(item => item.History is { DurationMinutes: >= 10 })
+            .OrderByDescending(item => item.Row.WorkingSetBytes)
+            .Take(40)
+            .Select(item => CreateProcessMemoryInfo(item.Row) with { History = item.History })
+            .ToArray();
+        if (processes.Length == 0)
+        {
+            MessageBox.Show(this,
+                "There is not enough activity history yet. Keep TaskManager++ open for at least 10 minutes, then try the Debloat review again.",
+                "AI Debloat review", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        new AiDeepScanWindow(this, apiKey, processes, actionMode, debloatMode: true)
+        {
+            Owner = this
+        }.ShowDialog();
+    }
+
     private void ChatAboutSelectedProcessButton_Click(object sender, RoutedEventArgs e)
     {
         var apiKey = GetApiKey();
@@ -188,7 +238,7 @@ public partial class MainWindow : Window
             var selectedProcess = ProcessesGrid.SelectedItem is ProcessRow selected
                 ? CreateProcessMemoryInfo(selected)
                 : null;
-            new AiChatWindow(apiKey, processes, selectedProcess) { Owner = this }.ShowDialog();
+            new AiChatWindow(this, apiKey, processes, selectedProcess) { Owner = this }.ShowDialog();
         }
     }
 
@@ -382,6 +432,8 @@ public partial class MainWindow : Window
                 System.Windows.Media.Color.FromRgb(0x35, 0x43, 0x5A)),
             BorderThickness = new Thickness(1)
         };
+        contextMenu.Items.Add(CreateMenuItem("End task…", EndTaskButton_Click));
+        contextMenu.Items.Add(new Separator());
         contextMenu.Items.Add(CreateMenuItem(
             "History",
             null,

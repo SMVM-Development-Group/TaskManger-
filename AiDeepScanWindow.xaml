@@ -50,7 +50,16 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="{Binding ProcessLabel}" FontWeight="SemiBold" />
+                            <StackPanel Orientation="Horizontal" Grid.Column="0">
+                                <CheckBox IsChecked="{Binding IsSelectedForAutopilot}"
+                                          IsEnabled="{Binding CanEnd}"
+                                          Visibility="{Binding SelectionVisibility}"
+                                          Checked="AutopilotSelection_Changed"
+                                          Unchecked="AutopilotSelection_Changed"
+                                          VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBlock Text="{Binding ProcessLabel}" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
                             <Button Grid.Column="1" Content="End task…" Click="EndRecommendedProcessButton_Click"
                                     Visibility="{Binding ActionVisibility}" IsEnabled="{Binding CanEnd}" />
                             <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Margin="0,8,0,0"
@@ -67,6 +76,10 @@
         <TextBlock x:Name="StatusText" Grid.Row="4" Margin="0,10,0,0"
                    Foreground="{DynamicResource TextMuted}" TextWrapping="Wrap" />
         <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button x:Name="EndSelectedButton" Content="End selected tasks…"
+                    Click="EndSelectedButton_Click" IsEnabled="False"
+                    Visibility="Collapsed" Margin="0,0,8,0"
+                    Style="{DynamicResource BtnDanger}"/>
             <Button x:Name="CloseButton" Content="Close" Click="CloseButton_Click" IsEnabled="False" />
         </StackPanel>
     </Grid>

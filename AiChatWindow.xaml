@@ -64,6 +64,8 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -99,7 +101,30 @@
                     ToolTip="Fetch model IDs available to this NVIDIA API key"/>
         </Grid>
 
-        <TextBox x:Name="ConversationText" Grid.Row="3"
+        <TextBlock Grid.Row="3" Margin="0,0,0,6" TextWrapping="Wrap"
+                   Foreground="{DynamicResource TextMuted}"
+                   Text="The selected process snapshot is sent to NVIDIA for analysis. This is read-only: the chatbot cannot run commands or control apps."/>
+
+        <WrapPanel Grid.Row="4" Margin="0,0,0,8">
+            <Button Content="/help" Click="SlashCommandSuggestion_Click"
+                    Style="{DynamicResource BtnSecondary}" Margin="0,0,6,6" Padding="10,5"/>
+            <Button Content="/ram" Click="SlashCommandSuggestion_Click"
+                    Style="{DynamicResource BtnSecondary}" Margin="0,0,6,6" Padding="10,5"/>
+            <Button Content="/top" Click="SlashCommandSuggestion_Click"
+                    Style="{DynamicResource BtnSecondary}" Margin="0,0,6,6" Padding="10,5"/>
+            <Button Content="/cpu" Click="SlashCommandSuggestion_Click"
+                    Style="{DynamicResource BtnSecondary}" Margin="0,0,6,6" Padding="10,5"/>
+            <Button Content="/gpu" Click="SlashCommandSuggestion_Click"
+                    Style="{DynamicResource BtnSecondary}" Margin="0,0,6,6" Padding="10,5"/>
+            <Button Content="/process " Click="SlashCommandSuggestion_Click"
+                    Style="{DynamicResource BtnSecondary}" Margin="0,0,6,6" Padding="10,5"/>
+            <Button Content="/agents" Click="SlashCommandSuggestion_Click"
+                    Style="{DynamicResource BtnSecondary}" Margin="0,0,6,6" Padding="10,5"/>
+            <Button Content="/ask " Click="SlashCommandSuggestion_Click"
+                    Style="{DynamicResource BtnSecondary}" Margin="0,0,6,6" Padding="10,5"/>
+        </WrapPanel>
+
+        <TextBox x:Name="ConversationText" Grid.Row="5"
                  IsReadOnly="True" AcceptsReturn="True"
                  TextWrapping="Wrap"
                  VerticalScrollBarVisibility="Auto"
@@ -109,10 +134,10 @@
                  Foreground="{DynamicResource TextPrimary}"
                  BorderBrush="{DynamicResource ControlBorder}"/>
 
-        <TextBlock x:Name="StatusText" Grid.Row="4" Margin="0,8,0,8"
+        <TextBlock x:Name="StatusText" Grid.Row="6" Margin="0,8,0,8"
                    Foreground="{DynamicResource TextMuted}" TextWrapping="Wrap"/>
 
-        <Grid Grid.Row="5">
+        <Grid Grid.Row="7">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>

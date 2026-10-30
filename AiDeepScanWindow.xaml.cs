@@ -13,23 +13,30 @@ public partial class AiDeepScanWindow : Window
     private readonly string _apiKey;
     private readonly IReadOnlyList<ProcessMemoryInfo> _processes;
     private readonly AiProcessActionMode _actionMode;
+    private readonly bool _debloatMode;
     private readonly List<RecommendationRow> _recommendations = [];
 
     internal AiDeepScanWindow(
         MainWindow mainWindow,
         string apiKey,
         IReadOnlyList<ProcessMemoryInfo> processes,
-        AiProcessActionMode actionMode)
+        AiProcessActionMode actionMode,
+        bool debloatMode = false)
     {
         InitializeComponent();
         _mainWindow = mainWindow;
         _apiKey = apiKey;
         _processes = processes;
         _actionMode = actionMode;
-        ModeText.Text = actionMode == AiProcessActionMode.Automatic
-            ? "Automatic mode is enabled. AI recommendations may be ended without another prompt; unsaved work can be lost."
-            : "Confirmation mode is enabled. You will be asked before each recommended process is ended.";
+        _debloatMode = debloatMode;
+        ModeText.Text = debloatMode
+            ? "Debloat review: suggestions are based on measured activity, not guesses about what you use. Nothing is changed until you select and confirm it."
+            : "Deep scan review: nothing is changed until you choose an action.";
+        EndSelectedButton.Visibility = actionMode == AiProcessActionMode.Autopilot
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         RecommendationsList.ItemsSource = _recommendations;
+        RecommendationsList.SelectionChanged += (_, _) => UpdateSelectedActionState();
         Loaded += AnalyzeProcesses;
     }
 
@@ -41,35 +48,29 @@ public partial class AiDeepScanWindow : Window
         try
         {
             var progress = new Progress<string>(message => StatusText.Text = message);
-            var analysis = await NvidiaAiClient.AnalyzeProcessesForTerminationAsync(_apiKey, _processes, progress);
+            var analysis = await NvidiaAiClient.AnalyzeProcessesForTerminationAsync(
+                _apiKey, _processes, progress, _debloatMode);
             SummaryText.Text = analysis.Summary;
 
             foreach (var recommendation in analysis.Recommendations)
             {
                 _recommendations.Add(new RecommendationRow(
                     recommendation,
-                    _actionMode == AiProcessActionMode.AskBeforeTerminating));
+                    _actionMode == AiProcessActionMode.AskBeforeTerminating,
+                    _actionMode == AiProcessActionMode.Autopilot));
             }
 
             if (_recommendations.Count == 0)
             {
-                StatusText.Text = "No process met the criteria for an ending recommendation.";
+                StatusText.Text = _debloatMode
+                    ? "No process met the measured low-activity criteria for a debloat suggestion."
+                    : "No process met the criteria for an ending recommendation.";
                 return;
             }
 
-            if (_actionMode == AiProcessActionMode.Automatic)
+            if (_actionMode == AiProcessActionMode.Autopilot)
             {
-                var endedCount = 0;
-                foreach (var recommendation in _recommendations)
-                {
-                    var ended = _mainWindow.TryEndProcess(recommendation.Process, out var result);
-                    recommendation.Result = result;
-                    recommendation.CanEnd = false;
-                    if (ended)
-                        endedCount++;
-                }
-
-                StatusText.Text = $"Automatic deep scan finished. Ended {endedCount} of {_recommendations.Count} recommended processes. See each result below.";
+                StatusText.Text = "Select the recommendations you approve, then choose End selected tasks… to review and confirm.";
             }
             else
             {
@@ -107,6 +108,7 @@ public partial class AiDeepScanWindow : Window
         finally
         {
             CloseButton.IsEnabled = true;
+            UpdateSelectedActionState();
         }
     }
 
@@ -130,6 +132,46 @@ public partial class AiDeepScanWindow : Window
         recommendation.CanEnd = false;
     }
 
+    private void EndSelectedButton_Click(object sender, RoutedEventArgs e)
+    {
+        var selected = _recommendations
+            .Where(recommendation => recommendation.IsSelectedForAutopilot && recommendation.CanEnd)
+            .ToArray();
+        if (selected.Length == 0)
+            return;
+
+        var processList = string.Join(Environment.NewLine, selected.Select(item =>
+            $"• {item.Process.Name} (PID {item.Process.Id})"));
+        var answer = MessageBox.Show(
+            this,
+            $"End these {selected.Length} selected processes? Unsaved work may be lost.\n\n{processList}",
+            "Confirm selected AI actions",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        if (answer != MessageBoxResult.Yes)
+            return;
+
+        foreach (var recommendation in selected)
+        {
+            _mainWindow.TryEndProcess(recommendation.Process, out var result);
+            recommendation.Result = result;
+            recommendation.CanEnd = false;
+            recommendation.IsSelectedForAutopilot = false;
+        }
+
+        UpdateSelectedActionState();
+    }
+
+    private void AutopilotSelection_Changed(object sender, RoutedEventArgs e) =>
+        UpdateSelectedActionState();
+
+    private void UpdateSelectedActionState()
+    {
+        EndSelectedButton.IsEnabled = CloseButton.IsEnabled
+            && _recommendations.Any(recommendation =>
+                recommendation.IsSelectedForAutopilot && recommendation.CanEnd);
+    }
+
     private void ShowAnalysisError(string message)
     {
         StatusText.Text = "Deep scan failed. No processes were ended.";
@@ -141,6 +183,7 @@ public partial class AiDeepScanWindow : Window
     private sealed class RecommendationRow : INotifyPropertyChanged
     {
         private bool _canEnd;
+        private bool _isSelectedForAutopilot;
         private string _result = "";
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -150,6 +193,19 @@ public partial class AiDeepScanWindow : Window
             $"{Process.Name} (PID {Process.Id}) · {MainWindow.FormatBytes(Process.WorkingSetBytes)} RAM";
         public string Reason { get; }
         public Visibility ActionVisibility { get; }
+        public Visibility SelectionVisibility { get; }
+
+        public bool IsSelectedForAutopilot
+        {
+            get => _isSelectedForAutopilot;
+            set
+            {
+                if (_isSelectedForAutopilot == value)
+                    return;
+                _isSelectedForAutopilot = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelectedForAutopilot)));
+            }
+        }
 
         public bool CanEnd
         {
@@ -175,12 +231,16 @@ public partial class AiDeepScanWindow : Window
             }
         }
 
-        public RecommendationRow(AiProcessTerminationRecommendation recommendation, bool canEnd)
+        public RecommendationRow(
+            AiProcessTerminationRecommendation recommendation,
+            bool showIndividualAction,
+            bool showAutopilotSelection)
         {
             Process = recommendation.Process;
             Reason = recommendation.Reason;
-            CanEnd = canEnd;
-            ActionVisibility = canEnd ? Visibility.Visible : Visibility.Collapsed;
+            CanEnd = true;
+            ActionVisibility = showIndividualAction ? Visibility.Visible : Visibility.Collapsed;
+            SelectionVisibility = showAutopilotSelection ? Visibility.Visible : Visibility.Collapsed;
         }
     }
 }

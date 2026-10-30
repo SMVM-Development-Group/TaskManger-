@@ -7,7 +7,7 @@ namespace TaskManagerPlusPlus;
 internal enum AiProcessActionMode
 {
     AskBeforeTerminating,
-    Automatic
+    Autopilot
 }
 
 internal static class AiSettingsStore
@@ -58,7 +58,7 @@ internal static class AiSettingsStore
         return File.ReadAllText(ProcessActionModeFilePath).Trim() switch
         {
             "ask" => AiProcessActionMode.AskBeforeTerminating,
-            "automatic" => AiProcessActionMode.Automatic,
+            "autopilot" or "automatic" => AiProcessActionMode.Autopilot,
             _ => throw new InvalidDataException(
                 "The saved AI process action mode is invalid. Open AI settings and choose a process action mode.")
         };
@@ -69,7 +69,7 @@ internal static class AiSettingsStore
         var value = mode switch
         {
             AiProcessActionMode.AskBeforeTerminating => "ask",
-            AiProcessActionMode.Automatic => "automatic",
+            AiProcessActionMode.Autopilot => "autopilot",
             _ => throw new ArgumentOutOfRangeException(nameof(mode))
         };
         var directory = Path.GetDirectoryName(ProcessActionModeFilePath)

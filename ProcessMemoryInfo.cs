@@ -33,4 +33,25 @@ internal sealed record ProcessHistorySummary(
     double? AverageSharedGpuBytes,
     double? PeakSharedGpuBytes);
 
-internal sealed record AiChatTarget(string DisplayLabel, ProcessMemoryInfo? Process);
+internal sealed record AiChatTarget(
+    string DisplayLabel,
+    ProcessMemoryInfo? Process,
+    bool IncludeAllProcesses = false);
+
+internal enum AiAgentActionType
+{
+    EndProcess,
+    DisableStartup,
+    RestoreStartup
+}
+
+internal sealed record AiAgentAction(
+    AiAgentActionType Type,
+    ProcessMemoryInfo? Process,
+    StartupEntry? StartupEntry,
+    string Reason);
+
+internal sealed record AiAgentResult(
+    string AgentName,
+    string Summary,
+    IReadOnlyList<AiAgentAction> Actions);

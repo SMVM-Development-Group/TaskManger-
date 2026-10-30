@@ -108,18 +108,18 @@
                      Foreground="{DynamicResource TextPrimary}"
                      BorderBrush="{DynamicResource ControlBorder}"/>
 
-        <TextBlock Grid.Row="6" Text="DEEP SCAN PROCESS ACTIONS" FontSize="11"
+        <TextBlock Grid.Row="6" Text="AI ACTION PERMISSIONS" FontSize="11"
                    FontWeight="SemiBold" Foreground="{DynamicResource TextMuted}"
                    Margin="0,14,0,5"/>
 
         <ComboBox x:Name="ProcessActionModeBox" Grid.Row="7" Height="38"
                   SelectionChanged="ProcessActionModeBox_SelectionChanged">
-            <ComboBoxItem Content="Ask before ending each process (recommended)" />
-            <ComboBoxItem Content="Automatically end AI recommendations" />
+            <ComboBoxItem Content="Standard — ask before each action (recommended)" />
+            <ComboBoxItem Content="Autopilot — select actions, then confirm once" />
         </ComboBox>
         <TextBlock Grid.Row="8" Margin="0,6,0,0" TextWrapping="Wrap"
                    Foreground="{DynamicResource TextMuted}"
-                   Text="Automatic mode applies only to Deep Scan recommendations. Ending a process may lose unsaved work; system-critical processes are always blocked. This choice is saved immediately."/>
+                   Text="Autopilot never acts by itself: select each AI recommendation and confirm the final action. Bypass mode is not available. System-critical processes are always blocked. This choice is saved immediately."/>
         <TextBlock x:Name="StatusText" Grid.Row="9" Margin="0,10,0,0"
                    Foreground="{DynamicResource TextMuted}" TextWrapping="Wrap"/>
 

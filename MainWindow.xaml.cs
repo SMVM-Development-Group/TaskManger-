@@ -14,6 +14,8 @@ namespace TaskManagerPlusPlus;
 
 public partial class MainWindow : Window
 {
+    private static readonly TimeSpan ProcessHistorySampleInterval = TimeSpan.FromSeconds(10);
+    private const int MaximumProcessHistorySamples = 180;
     private static readonly HashSet<string> AiTerminationBlockedProcessNames = new(
         [
             "csrss", "wininit", "winlogon", "services", "lsass", "smss",
@@ -24,9 +26,12 @@ public partial class MainWindow : Window
 
     private readonly ObservableCollection<ProcessRow> _processRows = [];
     private readonly Dictionary<int, CpuSample> _cpuSamples = [];
+    private readonly List<SystemUsageSample> _systemHistory = [];
     private readonly DispatcherTimer _refreshTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     private ICollectionView _processView = null!;
     private DateTime _lastCpuSample = DateTime.UtcNow;
+    private DateTime _lastSystemHistorySample = DateTime.MinValue;
+    private SystemCpuTimes? _previousSystemCpuTimes;
     private string _gpuCounterStatus = "GPU memory counters have not been sampled yet.";
 
     public MainWindow()
@@ -186,43 +191,50 @@ public partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(apiKey))
             return;
 
-        AiProcessActionMode actionMode;
         try
         {
-            actionMode = AiSettingsStore.LoadProcessActionMode();
+            var model = AiSettingsStore.LoadModel();
+            var startupEntries = CurrentUserStartupStore.GetEntries();
+            var processes = _processRows
+                .OrderByDescending(row => row.WorkingSetBytes)
+                .Take(60)
+                .Select(row => CreateProcessMemoryInfo(row) with { History = row.CreateHistorySummary() })
+                .ToArray();
+
+            if (processes.Length == 0 && startupEntries.Count == 0)
+            {
+                MessageBox.Show(this, "No process or current-user startup data is currently available.",
+                    "AI Debloat review", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            new AiAgentCoordinatorWindow(
+                this,
+                apiKey,
+                model,
+                processes,
+                startupEntries,
+                selectedAgentNames: ["Startup analyst", "Debloat analyst"],
+                autoStart: true)
+            {
+                Owner = this
+            }.ShowDialog();
         }
         catch (IOException ex)
         {
-            MessageBox.Show(this, $"Could not load the AI action permission setting: {ex.Message}",
-                "AI settings", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
+            MessageBox.Show(this, $"Could not load the AI model or startup inventory: {ex.Message}",
+                "AI Debloat review", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         catch (UnauthorizedAccessException ex)
         {
-            MessageBox.Show(this, $"Could not load the AI action permission setting: {ex.Message}",
-                "AI settings", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
+            MessageBox.Show(this, $"Could not read the current-user startup inventory: {ex.Message}",
+                "AI Debloat review", MessageBoxButton.OK, MessageBoxImage.Error);
         }
-
-        var processes = _processRows
-            .Select(row => (Row: row, History: row.CreateHistorySummary()))
-            .Where(item => item.History is { DurationMinutes: >= 10 })
-            .OrderByDescending(item => item.Row.WorkingSetBytes)
-            .Take(40)
-            .Select(item => CreateProcessMemoryInfo(item.Row) with { History = item.History })
-            .ToArray();
-        if (processes.Length == 0)
+        catch (InvalidDataException ex)
         {
-            MessageBox.Show(this,
-                "There is not enough activity history yet. Keep TaskManager++ open for at least 10 minutes, then try the Debloat review again.",
-                "AI Debloat review", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
+            MessageBox.Show(this, $"Could not load the saved AI model: {ex.Message}",
+                "AI Debloat review", MessageBoxButton.OK, MessageBoxImage.Error);
         }
-
-        new AiDeepScanWindow(this, apiKey, processes, actionMode, debloatMode: true)
-        {
-            Owner = this
-        }.ShowDialog();
     }
 
     private void ChatAboutSelectedProcessButton_Click(object sender, RoutedEventArgs e)
@@ -344,9 +356,11 @@ public partial class MainWindow : Window
             var now = DateTime.UtcNow;
             var elapsed = Math.Max((now - _lastCpuSample).TotalSeconds, 0.001);
             var processorCount = Math.Max(Environment.ProcessorCount, 1);
+            var systemCpuPercent = ReadSystemCpuPercent();
 
-            UpdateMemory();
+            var memory = UpdateMemory();
             UpdateProcesses(elapsed, processorCount);
+            AddSystemHistorySample(now, systemCpuPercent, memory);
             _lastCpuSample = now;
             UpdatedText.Text = $"Updated {DateTime.Now:HH:mm:ss}";
         }
@@ -362,7 +376,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void UpdateMemory()
+    private MemoryUsage UpdateMemory()
     {
         var memory = ReadMemoryUsage();
         var total = memory.TotalBytes;
@@ -374,6 +388,59 @@ public partial class MainWindow : Window
         PhysicalProgress.Value = total == 0 ? 0 : Math.Clamp(used * 100d / total, 0, 100);
         AvailableText.Text = FormatBytes(available);
         AvailableDetailText.Text = $"{(total == 0 ? 0 : available * 100d / total):N1}% of physical RAM free or reclaimable";
+        return memory;
+    }
+
+    private void AddSystemHistorySample(DateTime timestamp, double? cpuPercent, MemoryUsage memory)
+    {
+        if (!cpuPercent.HasValue
+            || timestamp - _lastSystemHistorySample < _refreshTimer.Interval)
+            return;
+
+        _systemHistory.Add(new SystemUsageSample(
+            timestamp,
+            cpuPercent.Value,
+            memory.TotalBytes,
+            memory.UsedBytes,
+            memory.AvailableBytes));
+        _lastSystemHistorySample = timestamp;
+
+        var cutoff = timestamp.AddMinutes(-30);
+        while (_systemHistory.Count > MaximumProcessHistorySamples
+            || (_systemHistory.Count > 1 && _systemHistory[0].Timestamp < cutoff))
+            _systemHistory.RemoveAt(0);
+    }
+
+    private double? ReadSystemCpuPercent()
+    {
+        if (!NativeMethods.GetSystemTimes(out var idleTime, out var kernelTime, out var userTime))
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not read system CPU counters.");
+
+        var current = new SystemCpuTimes(
+            ToUInt64(idleTime),
+            ToUInt64(kernelTime),
+            ToUInt64(userTime));
+        var previous = _previousSystemCpuTimes;
+        _previousSystemCpuTimes = current;
+        if (!previous.HasValue)
+            return null;
+
+        var idleDelta = current.Idle - previous.Value.Idle;
+        var kernelDelta = current.Kernel - previous.Value.Kernel;
+        var userDelta = current.User - previous.Value.User;
+        var totalDelta = kernelDelta + userDelta;
+        if (totalDelta == 0 || idleDelta > kernelDelta)
+            return null;
+
+        return Math.Clamp((totalDelta - idleDelta) * 100d / totalDelta, 0, 100);
+    }
+
+    private static ulong ToUInt64(System.Runtime.InteropServices.ComTypes.FILETIME value) =>
+        ((ulong)(uint)value.dwHighDateTime << 32) | (uint)value.dwLowDateTime;
+
+    private void SystemHistoryButton_Click(object sender, RoutedEventArgs e)
+    {
+        new SystemHistoryWindow(() => _systemHistory.ToArray()) { Owner = this }.ShowDialog();
     }
 
     private static MemoryUsage ReadMemoryUsage()
@@ -520,9 +587,11 @@ public partial class MainWindow : Window
         if (ProcessesGrid.SelectedItem is not ProcessRow selected)
             return;
 
-        var latestSample = selected.History.LastOrDefault();
-        var gpuInfo = latestSample?.DedicatedGpuBytes is ulong dedicated
-            && latestSample.SharedGpuBytes is ulong shared
+        ProcessUsageSample? latestSample = selected.History.Count == 0
+            ? null
+            : selected.History[^1];
+        var gpuInfo = latestSample is
+            { DedicatedGpuBytes: ulong dedicated, SharedGpuBytes: ulong shared }
             ? $"Dedicated VRAM: {FormatBytes(dedicated)}\nShared GPU memory: {FormatBytes(shared)}"
             : $"Per-process GPU memory is unavailable.\n{_gpuCounterStatus}";
         MessageBox.Show(this,
@@ -738,6 +807,7 @@ public partial class MainWindow : Window
     }
 
     private readonly record struct CpuSample(TimeSpan TotalCpuTime);
+    private readonly record struct SystemCpuTimes(ulong Idle, ulong Kernel, ulong User);
     private readonly record struct MemoryUsage(ulong TotalBytes, ulong UsedBytes, ulong AvailableBytes);
 
     private sealed class ProcessRow : INotifyPropertyChanged
@@ -827,9 +897,13 @@ public partial class MainWindow : Window
         private void AddHistorySample()
         {
             var now = DateTime.Now;
+            if (History.Count > 0 && now - History[^1].Timestamp < ProcessHistorySampleInterval)
+                return;
+
             History.Add(new ProcessUsageSample(now, CpuPercent, WorkingSetBytes, DedicatedGpuBytes, SharedGpuBytes));
             var cutoff = now.AddMinutes(-30);
-            while (History.Count > 900 || (History.Count > 1 && History[0].Timestamp < cutoff))
+            while (History.Count > MaximumProcessHistorySamples
+                || (History.Count > 1 && History[0].Timestamp < cutoff))
                 History.RemoveAt(0);
         }
     }
@@ -874,6 +948,13 @@ public partial class MainWindow : Window
         [DllImport("psapi.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool GetPerformanceInfo(ref PerformanceInformation information, uint size);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool GetSystemTimes(
+            out System.Runtime.InteropServices.ComTypes.FILETIME idleTime,
+            out System.Runtime.InteropServices.ComTypes.FILETIME kernelTime,
+            out System.Runtime.InteropServices.ComTypes.FILETIME userTime);
 
         [DllImport("psapi.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]

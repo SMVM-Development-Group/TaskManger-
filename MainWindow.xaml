@@ -98,7 +98,7 @@
                         <ContextMenu>
                             <MenuItem Header="Deep scan &amp; optimize (top 40 RAM users)"
                                       Click="DeepScanProcessesButton_Click"/>
-                            <MenuItem Header="AI Debloat review (measured low-activity processes)"
+                            <MenuItem Header="AI Debloat review (background apps and startup)"
                                       Click="DebloatProcessesButton_Click"/>
                             <MenuItem Header="Scan top 5 RAM users"     Click="AnalyzeProcessesButton_Click"/>
                             <MenuItem Header="Analyze selected process"  Click="AnalyzeSelectedProcessButton_Click"/>
@@ -159,9 +159,33 @@
             </Button>
 
             <!-- Available to apps card -->
-            <Border Grid.Column="1" Style="{StaticResource Card}" Margin="9,0,0,0">
+            <Button Grid.Column="1" Margin="9,0,0,0"
+                    AutomationProperties.Name="System history: total CPU and physical RAM"
+                    ToolTip="Click to view system-wide CPU and RAM history"
+                    Click="SystemHistoryButton_Click"
+                    HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                    Cursor="Hand" Padding="0" BorderThickness="0" Background="Transparent">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="CardBorder"
+                                Background="{DynamicResource Bg3}"
+                                BorderBrush="{DynamicResource ControlBorder}"
+                                BorderThickness="1" CornerRadius="10" Padding="16">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="CardBorder" Property="Background" Value="{DynamicResource BgHover}"/>
+                                <Setter TargetName="CardBorder" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="CardBorder" Property="Background" Value="{DynamicResource BgPressed}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
                 <StackPanel>
-                    <TextBlock Text="AVAILABLE TO APPS"
+                    <TextBlock Text="AVAILABLE TO APPS  ·  CLICK FOR SYSTEM HISTORY"
                                FontSize="11" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextMuted}"/>
                     <TextBlock x:Name="AvailableText" Text="—"
@@ -170,7 +194,7 @@
                                Text="Free + reclaimable standby memory"
                                Style="{StaticResource SubText}"/>
                 </StackPanel>
-            </Border>
+            </Button>
         </Grid>
 
         <!-- ── Process list card ──────────────────────────────────── -->

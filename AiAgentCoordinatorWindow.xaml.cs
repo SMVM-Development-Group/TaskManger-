@@ -15,8 +15,8 @@ public partial class AiAgentCoordinatorWindow : Window
         ("RAM analyst", "Focus on the largest working sets, private commit, shared-page caveats, and memory history. Suggest an end-process action only for a clear, significant, measured problem."),
         ("CPU analyst", "Focus on measured current CPU and CPU history. A single instantaneous sample is weak evidence; report uncertainty and suggest an end-process action only for a clearly justified noncritical process."),
         ("GPU / VRAM analyst", "Focus on dedicated/shared GPU memory and history. If GPU counters are unavailable, say so. Never infer GPU usage from a process name."),
-        ("Startup analyst", "Review only the supplied current-user startup inventory. Names alone cannot prove an item is unused. Prefer no action unless there is clear evidence; any disable/restore proposal must cite the exact supplied startup item ID."),
-        ("Debloat analyst", "Look for low-activity candidates only when history covers at least 10 minutes and average CPU is at most 1%. A process being quiet does not prove it is unused. Suggest at most one reversible user-startup change or end-process action, and explain uncertainty.")
+        ("Startup analyst", "Review the supplied current-user startup inventory alongside the process snapshot. Names alone cannot prove an item is unused. You may suggest disabling at most one enabled startup entry if it clearly matches a currently running nonessential app with a meaningful background resource footprint. Use at least 10 minutes of history when available, but do not require waiting for history to review startup entries. Treat it only as a candidate for the user's review, never claim it is unused, cite the exact supplied startup item ID, and never suggest ending a process."),
+        ("Debloat analyst", "Look for background apps with process history covering at least 10 minutes and average CPU at most 1%; a quiet process does not prove the user does not use it. If it clearly matches an enabled, nonessential current-user startup entry, you may suggest disabling that exact entry so it does not launch automatically again. You may also suggest ending that same clearly low-activity process, but only as a separate user-confirmed action. Explain uncertainty and never claim the app is unused.")
     ];
 
     private readonly MainWindow _mainWindow;
@@ -32,7 +32,9 @@ public partial class AiAgentCoordinatorWindow : Window
         string apiKey,
         string model,
         IReadOnlyList<ProcessMemoryInfo> processes,
-        IReadOnlyList<StartupEntry> startupEntries)
+        IReadOnlyList<StartupEntry> startupEntries,
+        IReadOnlyList<string>? selectedAgentNames = null,
+        bool autoStart = false)
     {
         InitializeComponent();
         _mainWindow = mainWindow;
@@ -42,9 +44,15 @@ public partial class AiAgentCoordinatorWindow : Window
         _startupEntries = startupEntries;
 
         foreach (var (name, instructions) in AgentDefinitions)
-            _agents.Add(new AgentRow(name, instructions));
+        {
+            var isSelected = selectedAgentNames is null
+                || selectedAgentNames.Contains(name, StringComparer.OrdinalIgnoreCase);
+            _agents.Add(new AgentRow(name, instructions, isSelected));
+        }
         AgentsList.ItemsSource = _agents;
         StatusText.Text = $"Ready · {_processes.Count:N0} processes · {_startupEntries.Count:N0} current-user startup entries";
+        if (autoStart)
+            Loaded += async (_, _) => await RunAgentsAsync(_agents.Where(agent => agent.IsSelected).ToArray());
     }
 
     private async void StartSelectedButton_Click(object sender, RoutedEventArgs e)
@@ -312,10 +320,11 @@ public partial class AiAgentCoordinatorWindow : Window
             set => SetField(ref _summary, value);
         }
 
-        public AgentRow(string name, string instructions)
+        public AgentRow(string name, string instructions, bool isSelected)
         {
             Name = name;
             Instructions = instructions;
+            IsSelected = isSelected;
         }
 
         private void SetField<T>(ref T field, T value, [System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)

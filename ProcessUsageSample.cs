@@ -1,6 +1,6 @@
 namespace TaskManagerPlusPlus;
 
-internal sealed record ProcessUsageSample(
+internal readonly record struct ProcessUsageSample(
     DateTime Timestamp,
     double CpuPercent,
     ulong WorkingSetBytes,
